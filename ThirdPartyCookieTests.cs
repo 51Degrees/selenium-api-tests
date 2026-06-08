@@ -16,15 +16,12 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests
     /// Selenium tests for the cloud's third-party-cookie detection (the /api/v4/3pc
     /// endpoint and the 51Degrees JS include).
     ///
-    /// The page is served from origin A (localhost) while the cloud is hit on origin B
-    /// (127.0.0.1), so the browser treats the cloud's cookie as genuinely third-party —
-    /// Chrome special-cases localhost otherwise. That cookie is SameSite=None; Secure and
-    /// relies on Chrome's localhost secure-context exception, since the test cloud is HTTP.
+    /// The page is served from localhost while the cloud is hit on 127.0.0.1, so the
+    /// browser treats the cloud's cookie as genuinely third-party.
     /// </summary>
     [TestClass, TestCategory("CloudInternal")]
     public class ThirdPartyCookieTests
     {
-        // Constants for repeated strings used in test assertions and HTML generation
         private const string StatusElementId = "status";
         private const string ResultElementId = "result";
         private const string CheckingStatus = "Checking...";
@@ -38,14 +35,13 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests
         private IWebDriver _driver;
 
         /// <summary>
-        /// URL of the client server (Origin A) - simulates a customer's website.
-        /// The test HTML page is served from this origin.
+        /// URL of the client server that serves the test page (a stand-in for a
+        /// customer's website).
         /// </summary>
         private string _clientServerUrl;
 
         /// <summary>
-        /// URL of the cloud server (Origin B) - the 51Degrees cloud service.
-        /// The /api/v4/3pc endpoint is hosted here.
+        /// URL of the cloud server hosting the /api/v4/3pc endpoint.
         /// </summary>
         private string _cloudServerUrl;
 
@@ -54,9 +50,8 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests
         private WebDriverWait _wait;
 
         /// <summary>
-        /// Returns the cloud server URL with 127.0.0.1 instead of localhost.
-        /// This ensures Chrome treats cookies as truly third-party when blocking is enabled,
-        /// as Chrome has special handling for localhost in development.
+        /// The cloud server URL with 127.0.0.1 in place of localhost, so the
+        /// browser treats its cookies as truly third-party.
         /// </summary>
         private string CloudServerUrlCrossOrigin => _cloudServerUrl.Replace("localhost", "127.0.0.1");
 
@@ -106,8 +101,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests
                 return;
             }
 
-            // Defensive bound: the loop must terminate even if the listener never
-            // reports IsListening == false, so teardown can't spin forever.
+            // Bound the wait so teardown can't spin forever.
             var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
             while (_clientServer.IsListening && DateTime.UtcNow < deadline)
             {
@@ -156,15 +150,13 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests
             _driver = CreateDriver(options);
             _wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(DefaultTimeoutSeconds));
 
-            // Origin B: The 51Degrees cloud server (already started by TestInitialiser)
             _cloudServerUrl = TestInitialiser.CloudServerUrl;
 
-            // Origin A: Start a separate client server to simulate a customer's website
-            // Uses localhost while cloud server uses 127.0.0.1 to ensure true cross-origin behavior
+            // The client server uses localhost while the cloud uses 127.0.0.1, so
+            // requests to the cloud are cross-origin.
             _clientServerUrl = $"http://localhost:{TestHelpers.GetRandomUnusedPort()}/";
             _clientServerTokenSource = new CancellationTokenSource();
 
-            // Generate the test HTML with the cloud server URL (127.0.0.1) embedded
             var testPageHtml = GenerateTestPageHtml(CloudServerUrlCrossOrigin);
 
             var serverListener = TestHelpers.SimpleListener(
@@ -192,13 +184,9 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests
         [TestMethod]
         public void ThirdPartyCookie_FirstVisit_ReturnsSetStatus()
         {
-            // a fresh browser is started for each test, so there are no cookies to clear
             _driver.Navigate().GoToUrl(_clientServerUrl);
-
-            // Wait for the cross-origin request to complete and status to be updated
             WaitForRequestToComplete();
 
-            // Assert
             var statusElement = _driver.FindElement(By.Id(StatusElementId));
             var statusText = statusElement.Text;
 
@@ -212,18 +200,13 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests
         [TestMethod]
         public void ThirdPartyCookie_SecondVisit_ReturnsReceivedStatus()
         {
-            // Arrange - First visit to set the cookie via cross-origin request
             _driver.Navigate().GoToUrl(_clientServerUrl);
             WaitForRequestToComplete();
 
-            // Act - Reload the page to trigger a second cross-origin request
-            // If third-party cookies work, the cookie should be sent with this request
+            // Reload to send a second request; the cookie should come back with it.
             _driver.Navigate().Refresh();
-
-            // Wait for status to update
             WaitForRequestToComplete();
 
-            // Assert
             var statusElement = _driver.FindElement(By.Id(StatusElementId));
             var statusText = statusElement.Text;
 
@@ -239,11 +222,8 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests
         [TestMethod]
         public void ThirdPartyCookie_JsInclude_DetectsThirdPartyCookiesEnabled()
         {
-            // Arrange - Create a new client server with JS include page
             StartJsIncludeClientServer();
 
-            // Act - Load page and wait for fod.complete to fire
-            // The cookie is set by the JS endpoint and immediately used by the callback
             _driver.Navigate().GoToUrl(_clientServerUrl);
             _wait.Until(d => d.FindElement(By.Id(StatusElementId)).Text == "complete");
 
@@ -262,10 +242,8 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests
         [TestMethod]
         public void ThirdPartyCookie_JsInclude_SuppressesJavaScriptSnippetWhenDetected()
         {
-            // Arrange - Create a new client server with JS include page
             StartJsIncludeClientServer();
 
-            // Act - Load page and wait for fod.complete to fire
             _driver.Navigate().GoToUrl(_clientServerUrl);
             _wait.Until(d => d.FindElement(By.Id(StatusElementId)).Text == "complete");
 
@@ -280,24 +258,20 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests
 
         /// <summary>
         /// With Chrome's --test-third-party-cookie-phaseout flag the cookie is blocked, so
-        /// detection reports thirdpartycookiesenabled="False". The flag is used because there is
-        /// no reliable runtime CDP toggle (Network.setCookieControls is experimental).
+        /// detection reports thirdpartycookiesenabled="False".
         /// </summary>
         [TestMethod]
         public void ThirdPartyCookie_JsInclude_PhaseoutFlagBlocksCookies()
         {
-            // Arrange - Recreate driver with 3PC phaseout flag
             var options = CreateBaseOptions();
             options.AddArgument("--test-third-party-cookie-phaseout");
             RecreateDriver(options);
 
             StartJsIncludeClientServer();
 
-            // Act - Load page and wait for fod.complete
             _driver.Navigate().GoToUrl(_clientServerUrl);
             _wait.Until(d => d.FindElement(By.Id(StatusElementId)).Text == "complete");
 
-            // Assert - Should detect cookies as blocked
             var resultText = _driver.FindElement(By.Id(ResultElementId)).Text;
             Assert.IsTrue(resultText.Contains("\"thirdpartycookiesenabled\":\"False\""),
                 $"Expected thirdpartycookiesenabled to be 'False' with --test-third-party-cookie-phaseout flag. Result: {resultText}");
@@ -310,7 +284,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests
         [TestMethod]
         public void ThirdPartyCookie_JsInclude_DetectsThirdPartyCookiesDisabled()
         {
-            // Arrange - Recreate driver with 3rd party cookies blocked
             var options = CreateBaseOptions();
             options.AddUserProfilePreference("profile.cookie_controls_mode", 1);
             options.AddUserProfilePreference("profile.block_third_party_cookies", true);
@@ -318,11 +291,9 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests
 
             StartJsIncludeClientServer();
 
-            // Act - Load page and wait for fod.complete to fire
             _driver.Navigate().GoToUrl(_clientServerUrl);
             _wait.Until(d => d.FindElement(By.Id(StatusElementId)).Text == "complete");
 
-            // Assert - Check that thirdpartycookiesenabled is "False" in the returned data
             var resultText = _driver.FindElement(By.Id(ResultElementId)).Text;
             Assert.IsTrue(resultText.Contains("\"thirdpartycookiesenabled\":\"False\""),
                 $"Expected thirdpartycookiesenabled to be 'False' when third-party cookies " +
@@ -335,7 +306,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests
         /// </summary>
         private string GenerateTestPageHtml(string cloudServerUrl)
         {
-            // Remove trailing slash if present for cleaner URL construction
             var baseUrl = cloudServerUrl.TrimEnd('/');
 
             return $@"<!DOCTYPE html>
@@ -371,8 +341,8 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests
             var baseUrl = cloudServerUrl.TrimEnd('/');
             var jsEndpoint = $"{baseUrl}/api/v4/{TestResourceKey.PaidJavaScriptEndpoint}";
 
-            // Set fodTpcEndpoint before loading the script so the third-party cookie
-            // detection JavaScript uses our test server instead of cloud.51degrees.com
+            // Point the cookie-detection JavaScript at the test server rather than
+            // the default cloud endpoint.
             var tpcEndpoint = $"{baseUrl}{ThirdPartyCookieEndpoint}";
 
             return $@"<!DOCTYPE html>

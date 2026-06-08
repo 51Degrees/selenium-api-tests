@@ -80,7 +80,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.BrowserCache
         }
 
         /// <summary>
-        /// Use Chrome
+        /// Browser cache behaviour in Chrome.
         /// </summary>
         [TestMethod]
         public void JavaScript_BrowserCache_Chrome()
@@ -103,7 +103,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.BrowserCache
         }
 
         /// <summary>
-        /// Use Edge.
+        /// Browser cache behaviour in Edge.
         /// </summary>
         [TestMethod]
         [Ignore("Headless Edge on ubuntu-latest hangs on first navigation; Chrome and Firefox provide sufficient coverage.")]
@@ -127,7 +127,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.BrowserCache
         }
 
         /// <summary>
-        /// Use FireFox.
+        /// Browser cache behaviour in Firefox.
         /// </summary>
         [TestMethod]
         public void JavaScript_BrowserCache_FireFox()
@@ -151,7 +151,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.BrowserCache
 
         private void RunTest(WebDriver driver)
         {
-            // Navigate to the test client website.
             driver.Navigate().GoToUrl(ClientServerUrl);
 
             IJavaScriptExecutor js = driver;
@@ -161,17 +160,14 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.BrowserCache
             var session = js.ExecuteScript("return fod.sessionId");
             var device = js.ExecuteScript("return JSON.stringify(fod.device)");
 
-            // Check the values are returned.
             Assert.IsNotNull(session, "session is null");
             Assert.IsNotNull(device, "device is null");
 
             // Refresh the page -- the browser should serve from cache.
             driver.Navigate().Refresh();
 
-            // Wait until the values have been updated.
             WaitForDeviceData(driver, js, "page refresh");
 
-            // Get the values from the DOM after refresh.
             var session2 = js.ExecuteScript("return fod.sessionId");
             var device2 = js.ExecuteScript("return JSON.stringify(fod.device)");
 

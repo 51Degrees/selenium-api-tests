@@ -127,24 +127,19 @@ namespace FiftyOne.Pipeline.Cloud.Tests.Common.Helpers
         {
             bool runServer = true;
 
-            // Keep handling requests until cancellation is requested.
             while (runServer)
             {
-                // Will wait here until we hear from a connection
                 HttpListenerContext ctx = await Listener.GetContextAsync();
 
-                // Peel out the requests and response objects
                 HttpListenerRequest req = ctx.Request;
                 HttpListenerResponse resp = ctx.Response;
 
-                // If cancellation requested then shutdown server.
                 if (token.IsCancellationRequested)
                 {
                     Console.WriteLine("Shutdown requested");
                     runServer = false;
                 }
 
-                // Increment the request count.
                 RequestCount = RequestCount + 1;
 
                 try

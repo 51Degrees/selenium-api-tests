@@ -22,7 +22,6 @@ namespace FiftyOne.Pipeline.Cloud.Tests.Common.Helpers
             listener.Prefixes.Add(url);
             listener.Start();
 
-            // Handle requests
             Task listenTask = new HttpServer(listener).HandleIncomingConnections(token);
             listenTask.GetAwaiter();
             return listener;
@@ -52,7 +51,6 @@ namespace FiftyOne.Pipeline.Cloud.Tests.Common.Helpers
             listener.Prefixes.Add(url);
             listener.Start();
 
-            // Handle requests
             var server = new HttpServer(listener, pageData);
             Task listenTask = server.HandleIncomingConnections(token);
             listenTask.GetAwaiter();

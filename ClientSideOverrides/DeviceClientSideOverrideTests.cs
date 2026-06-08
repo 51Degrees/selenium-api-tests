@@ -71,23 +71,8 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
             clientServerTokenSource = new CancellationTokenSource();
             var token = clientServerTokenSource.Token;
 
-            // Opt this origin out of UA Client Hints. Selenium's
-            // ChromiumMobileEmulationDeviceSettings overrides
-            // navigator.userAgent but does not override the low-entropy
-            // hints (Sec-CH-UA, Sec-CH-UA-Mobile, Sec-CH-UA-Platform), so
-            // on Linux CI runners the browser leaks "Chromium 147 / ?0 /
-            // Linux" alongside an emulated iOS user agent. The cloud then
-            // sees contradictory evidence (UA says iOS, hints say desktop
-            // Linux) and falls back to an Unknown profile whose JS-property
-            // bodies are empty, so the bundle silently skips the
-            // screen-pixel cookie writes this test asserts on.
-            //
-            // Permissions-Policy: ch-ua=(), ch-ua-mobile=(),
-            // ch-ua-platform=() instructs the browser to stop sending those
-            // hints on subsequent same-origin requests (the bundle fetch
-            // and its refetch), matching real iOS Safari (which sends none).
-            // Scoped to this test only — other Selenium tests still see the
-            // browser's natural Sec-CH-UA-* headers.
+            // Opt this origin out of UA client hints so they don't contradict
+            // the emulated mobile user agent.
             var pageHeaders = new Dictionary<string, string>
             {
                 ["Permissions-Policy"] = "ch-ua=(), ch-ua-mobile=(), ch-ua-platform=()",
@@ -165,10 +150,8 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
             Assert.AreEqual(width, screenWidth, "emulated screen width does not match");
             Assert.AreEqual(height, screenHeight, "emulated screen height does not match");
 
-            // The bundle stores JS-collected evidence in cookies when
-            // CloudJavaScriptBuilderElement is configured with EnableCookies=true
-            // (CI), and otherwise in sessionStorage. Look in both so the test
-            // works in either configuration.
+            // The bundle stores JS-collected evidence in cookies or in
+            // sessionStorage, so look in both.
             var evidenceWidth = JsEvidenceHelper.Read(js, driver, "51D_ScreenPixelsWidth");
             var evidenceHeight = JsEvidenceHelper.Read(js, driver, "51D_ScreenPixelsHeight");
             Assert.IsNotNull(evidenceWidth, "51D_ScreenPixelsWidth was not captured by client-side JS (in cookie or sessionStorage)");

@@ -65,46 +65,35 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Selenium
         /// <param name="license">Additional license to query the endpoint with.</param>
         /// <param name="parameters">Additional parameters to query the endpoint with.</param>
         /// <returns>IJavaScriptExecutor generated from the RemoteWebDriver</returns>
-        internal IJavaScriptExecutor TestJavaScript(string endpoint, string objectName, string[] values, string license, params string[] parameters) 
-        { 
-            // Arrange
-
+        internal IJavaScriptExecutor TestJavaScript(string endpoint, string objectName, string[] values, string license, params string[] parameters)
+        {
             var allParameters = new List<string>();
 
-            // Add custom object name to parameters if it is set...
             if(string.IsNullOrWhiteSpace(objectName) == false)
             {
                 allParameters.Add($"{JavaScriptBuilder.Constants.EVIDENCE_OBJECT_NAME_SUFFIX}={objectName}");
-            } 
-            // ... otherwise set to default.
+            }
             else
             {
                 objectName = JavaScriptBuilder.Constants.BUILDER_DEFAULT_OBJECT_NAME;
             }
 
-            // Add the values to the parameters
-            if (values.Length > 0) 
+            if (values.Length > 0)
             {
                 allParameters.Add($"values={string.Join('+', values)}");
             }
 
-            // Add license key to the parameters
             if (string.IsNullOrWhiteSpace(license) == false)
             {
                 allParameters.Add($"license={license}");
             }
 
-            // Add additional parameters.
             if (parameters.Length > 0)
             {
                 allParameters.AddRange(parameters);
             }
 
-            // Act
-
             var response = Get(endpoint, allParameters.ToArray());
-
-            // Assert
 
             Assert.AreEqual(HttpStatusCode.OK, response.StatusCode,
                 $"{endpoint} returned status code {response.StatusCode}.");
@@ -115,8 +104,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Selenium
 
             IJavaScriptExecutor js = Driver;
 
-            // Run the JavaScript content from the cloud service and bind to 
-            // window so we can check it later.
+            // Bind the object to window so the test can read it back later.
             js.ExecuteScript($"{content}; window.{objectName} = {objectName};") ;
 
             return js;

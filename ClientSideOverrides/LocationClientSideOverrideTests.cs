@@ -83,16 +83,14 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
         public void JavaScript_ClientSideOverrides()
         {
             var chromeOptions = new ChromeOptions();
-            // allow insecure connections
             chromeOptions.AcceptInsecureCertificates = true;
-            // run in headless mode.
             chromeOptions.AddArgument("--headless");
 
             chromeOptions.SetLoggingPreference(LogType.Browser, LogLevel.All);
 
             driver = new ChromeDriver(chromeOptions);
 
-            // allow geo-location on test client website
+            // Allow geo-location on the test client website.
             driver.ExecuteCdpCommand("Browser.grantPermissions",
                 new Dictionary<string, object>()
                 {
@@ -100,8 +98,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
                     { "permissions", new string[]{ "geolocation" } }
                 });
 
-            // set the browser location
-            driver.ExecuteCdpCommand("Emulation.setGeolocationOverride", 
+            driver.ExecuteCdpCommand("Emulation.setGeolocationOverride",
                 new Dictionary<string, object>() 
                 {
                     { "latitude", 51 },
@@ -109,19 +106,15 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
                     { "accuracy", 100 },
                 });
 
-            // navigate to the test client website and use the location feature.
             driver.Navigate().GoToUrl(ClientServerUrl);
 
             IJavaScriptExecutor js = driver;
 
-            // Wait for the windows to finish loading.
             new WebDriverWait(driver, TimeSpan.FromSeconds(5)).Until(
                 webDriver => js.ExecuteScript("return doc").Equals("complete"));
 
-            // Click the 'use my location' button
             driver.FindElement(By.Id("locationbutton")).Click();
 
-            // Wait until the values have been updated.
             new WebDriverWait(driver, TimeSpan.FromSeconds(JavaScriptTimeout)).Until(
                 webDriver =>
                     js.ExecuteScript("return test").Equals("complete") &&

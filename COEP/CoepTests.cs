@@ -59,7 +59,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.COEP
 </html>
 ";
 
-            // Start a local HTTP server that sends COEP header
             var port = TestHelpers.GetRandomUnusedPort();
             ClientServerUrl = $"http://localhost:{port}/";
             clientServerTokenSource = new CancellationTokenSource();
@@ -102,7 +101,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.COEP
                 }
             }, token);
 
-            // Start headless Chrome
             var options = new ChromeOptions();
             options.AcceptInsecureCertificates = true;
             options.AddArgument("--headless");
@@ -138,7 +136,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.COEP
             }
             catch (WebDriverTimeoutException)
             {
-                // Capture diagnostics before failing
                 var testVal = js.ExecuteScript("return test");
                 var fodDefined = js.ExecuteScript(
                     "return typeof fod !== 'undefined'");

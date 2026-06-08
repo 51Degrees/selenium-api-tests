@@ -4,9 +4,6 @@
     <TargetFramework>net10.0</TargetFramework>
     <IsPackable>false</IsPackable>
     <Platforms>x64;ARM64</Platforms>
-    <!-- Phase 1 keeps warnings-as-errors and doc generation off: the copied
-         TestConfig uses // (not ///) on public members, which would trip
-         CS1591 under GenerateDocumentationFile. Tighten later if wanted. -->
   </PropertyGroup>
 
   <ItemGroup>
