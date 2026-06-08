@@ -19,7 +19,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
     /// Runs the client-side-override checks against a real example app that serves
     /// 51Degrees.core.js from its own pipeline and talks to the cloud.
     /// </summary>
-    [TestClass]
+    [TestClass, TestCategory("Contract")]
     public class ExampleClientSideOverrideTests
     {
         private const int JavaScriptTimeout = 60;
@@ -44,8 +44,8 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
             if (string.IsNullOrEmpty(cloudEndpoint))
             {
                 Assert.Inconclusive(
-                    "No external cloud configured. Set TEST_CONFIG_FILE to a json file " +
-                    "with \"cloud_root_url\" (e.g. https://cloud.51degrees.com/).");
+                    "No external cloud configured. Set CLOUD_ROOT_URL " +
+                    "(e.g. https://cloud.51degrees.com/).");
                 return;
             }
 

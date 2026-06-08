@@ -23,7 +23,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
     /// counterpart to <see cref="ExampleClientSideOverrideTests"/>, which only
     /// reads the client-side <c>fod</c> object.
     /// </summary>
-    [TestClass]
+    [TestClass, TestCategory("Contract")]
     public class ExampleRenderTests
     {
         private const int PageLoadTimeoutSeconds = 60;
@@ -58,8 +58,8 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
             if (string.IsNullOrEmpty(cloudEndpoint))
             {
                 Assert.Inconclusive(
-                    "No external cloud configured. Set TEST_CONFIG_FILE to a json file " +
-                    "with \"cloud_root_url\" (e.g. https://cloud.51degrees.com/).");
+                    "No external cloud configured. Set CLOUD_ROOT_URL " +
+                    "(e.g. https://cloud.51degrees.com/).");
                 return;
             }
 
