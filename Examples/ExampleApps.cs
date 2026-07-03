@@ -159,6 +159,41 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     BuildCommand: "composer",
                     BuildArgs: new[] { "install", "--working-dir=.." },
                     BuildTimeoutSeconds: 600),
+                ["rust"] = new ExampleDescriptor(
+                    Lang: "rust",
+                    // the examples form their own workspace under examples/;
+                    // --config source.toml patches the fiftyone-* dependencies to
+                    // the checked-out source tree instead of crates.io
+                    WorkingDir: Path.Combine(
+                        RepoPaths.SiblingsRoot,
+                        "rust", "examples"),
+                    Command: "cargo",
+                    Args: new[]
+                    {
+                        "run", "--config", "source.toml",
+                        "-p", "device-detection-examples",
+                        "--bin", "dd-web-getting-started-cloud",
+                    },
+                    ReadinessPath: "/",
+                    StartupTimeoutSeconds: 60,
+                    BuildEnv: o => new Dictionary<string, string>
+                    {
+                        ["PORT"] = $"{o.Port}",
+                        // the engine reads the base cloud URL (which includes the
+                        // api/v4 path) from 51DEGREES_CLOUD_ENDPOINT
+                        ["51DEGREES_CLOUD_ENDPOINT"] = new Uri(o.CloudEndpoint, "api/v4/").ToString(),
+                        ["51DEGREES_RESOURCE_KEY"] = o.ResourceKey,
+                    },
+                    // compile ahead of `cargo run` so the native-code build gets
+                    // the build timeout, leaving startup to the run timeout
+                    BuildCommand: "cargo",
+                    BuildArgs: new[]
+                    {
+                        "build", "--config", "source.toml",
+                        "-p", "device-detection-examples",
+                        "--bin", "dd-web-getting-started-cloud",
+                    },
+                    BuildTimeoutSeconds: 900),
             };
     }
 }

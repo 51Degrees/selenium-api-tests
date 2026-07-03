@@ -1,3 +1,4 @@
+using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
@@ -55,6 +56,23 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
             Assert.AreEqual("bash", php.Command);
             Assert.IsNull(php.RunArtifactGlob);
             StringAssert.Contains(php.Args[1], "php -S");
+        }
+
+        /// <summary>The rust example is built and run with cargo against local source.</summary>
+        [TestMethod]
+        public void Descriptors_Rust_BuildsAndRunsWithCargo()
+        {
+            Assert.IsTrue(ExampleApps.Descriptors.ContainsKey("rust"),
+                "rust descriptor should be registered");
+            var rust = ExampleApps.Descriptors["rust"];
+            Assert.AreEqual("cargo", rust.BuildCommand);
+            Assert.AreEqual("cargo", rust.Command);
+            Assert.IsNull(rust.RunArtifactGlob);
+            // the examples workspace must be patched to the checked-out source
+            Assert.IsTrue(rust.Args.Contains("source.toml"),
+                "run args should patch dependencies to the local source tree");
+            Assert.IsTrue(rust.Args.Contains("dd-web-getting-started-cloud"),
+                "run args should target the cloud getting-started web binary");
         }
     }
 }
