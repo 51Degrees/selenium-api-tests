@@ -100,6 +100,38 @@ namespace FiftyOne.Pipeline.Cloud.Tests.Common.Helpers
         }
 
         /// <summary>
+        /// Creates an HttpListener that serves <paramref name="pageData"/>
+        /// for page paths and proxies the 51Degrees script and pipeline
+        /// endpoints to <paramref name="exampleUrl"/> without caching.
+        /// </summary>
+        public static ServerListener ExampleProxyListener(
+            string clientUrl,
+            string exampleUrl,
+            string pageData,
+            CancellationToken token)
+        {
+            var listener = new HttpListener();
+            listener.Prefixes.Add(clientUrl);
+            listener.Start();
+
+            var server = new HttpServer(listener, pageData)
+            {
+                ProxyRoutes = new Dictionary<string, string>
+                {
+                    ["/51Degrees.core.js"] = exampleUrl,
+                    ["/51dpipeline/"] = exampleUrl,
+                },
+                ProxiedHeaderOverrides = new Dictionary<string, string>
+                {
+                    ["Cache-Control"] = "no-store",
+                },
+            };
+            Task listenTask = server.HandleIncomingConnections(token);
+            listenTask.GetAwaiter();
+            return new ServerListener(listener, server);
+        }
+
+        /// <summary>
         /// Start a new TcpListener with the port as 0 so that the OS assigns an
         /// available port. Record this then close the listener. This ensures
         /// that a 'randomly' generated port number is free.

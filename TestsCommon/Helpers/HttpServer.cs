@@ -55,6 +55,23 @@ namespace FiftyOne.Pipeline.Cloud.Tests.Common.Helpers
         /// </summary>
         public string ProxyAllTo { get; private set; }
 
+        /// <summary>
+        /// Path prefixes proxied to another server, e.g. the example app
+        /// under test.
+        /// </summary>
+        public IReadOnlyDictionary<string, string> ProxyRoutes { get; set; }
+
+        /// <summary>
+        /// Response headers forced onto responses proxied via
+        /// <see cref="ProxyRoutes"/>.
+        /// </summary>
+        public IReadOnlyDictionary<string, string> ProxiedHeaderOverrides { get; set; }
+
+        /// <summary>
+        /// Method and path of each request handled since the last reset.
+        /// </summary>
+        public List<string> RequestLog { get; } = new List<string>();
+
         private static readonly HttpClient _httpClient = new HttpClient();
 
         /// <summary>
@@ -72,6 +89,7 @@ namespace FiftyOne.Pipeline.Cloud.Tests.Common.Helpers
         public void ResetRequests()
         {
             RequestCount = 0;
+            RequestLog.Clear();
         }
 
         /// <summary>
@@ -142,11 +160,35 @@ namespace FiftyOne.Pipeline.Cloud.Tests.Common.Helpers
 
                 RequestCount = RequestCount + 1;
 
+                if (req.Url != null)
+                {
+                    RequestLog.Add($"{req.HttpMethod} {req.Url.AbsolutePath}");
+                }
+
+                string proxyRouteTarget = null;
+                if (ProxyRoutes != null && req.Url != null)
+                {
+                    foreach (var route in ProxyRoutes)
+                    {
+                        if (req.Url.AbsolutePath.StartsWith(
+                            route.Key, StringComparison.OrdinalIgnoreCase))
+                        {
+                            proxyRouteTarget = route.Value;
+                            break;
+                        }
+                    }
+                }
+
                 try
                 {
                     if (ProxyAllTo != null)
                     {
                         await ProxyTo(ProxyAllTo, req, resp, addExtraHeaders: true);
+                    }
+                    else if (proxyRouteTarget != null)
+                    {
+                        await ProxyTo(proxyRouteTarget, req, resp,
+                            addExtraHeaders: false, ProxiedHeaderOverrides);
                     }
                     else if (CloudUrl != null
                         && req.Url != null
@@ -181,7 +223,8 @@ namespace FiftyOne.Pipeline.Cloud.Tests.Common.Helpers
             string baseUrl,
             HttpListenerRequest req,
             HttpListenerResponse resp,
-            bool addExtraHeaders)
+            bool addExtraHeaders,
+            IReadOnlyDictionary<string, string> headerOverrides = null)
         {
             var targetUri = new Uri(new Uri(baseUrl), req.Url.PathAndQuery.TrimStart('/'));
             using var outgoing = new HttpRequestMessage(new HttpMethod(req.HttpMethod), targetUri);
@@ -229,6 +272,14 @@ namespace FiftyOne.Pipeline.Cloud.Tests.Common.Helpers
 
             CopyResponseHeaders(response.Headers, resp);
             CopyResponseHeaders(response.Content.Headers, resp);
+
+            if (headerOverrides != null)
+            {
+                foreach (var kv in headerOverrides)
+                {
+                    resp.Headers[kv.Key] = kv.Value;
+                }
+            }
 
             if (addExtraHeaders && ExtraResponseHeaders != null)
             {
