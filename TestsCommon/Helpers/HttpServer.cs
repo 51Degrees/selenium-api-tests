@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -69,8 +70,12 @@ namespace FiftyOne.Pipeline.Cloud.Tests.Common.Helpers
 
         /// <summary>
         /// Method and path of each request handled since the last reset.
+        /// Written by the listen loop and read from the test thread while the
+        /// server is live, so it must tolerate concurrent access: enumerating
+        /// a <see cref="ConcurrentQueue{T}"/> takes a snapshot rather than
+        /// throwing when a request arrives mid-read.
         /// </summary>
-        public List<string> RequestLog { get; } = new List<string>();
+        public ConcurrentQueue<string> RequestLog { get; } = new ConcurrentQueue<string>();
 
         private static readonly HttpClient _httpClient = new HttpClient();
 
@@ -162,7 +167,7 @@ namespace FiftyOne.Pipeline.Cloud.Tests.Common.Helpers
 
                 if (req.Url != null)
                 {
-                    RequestLog.Add($"{req.HttpMethod} {req.Url.AbsolutePath}");
+                    RequestLog.Enqueue($"{req.HttpMethod} {req.Url.AbsolutePath}");
                 }
 
                 string proxyRouteTarget = null;
