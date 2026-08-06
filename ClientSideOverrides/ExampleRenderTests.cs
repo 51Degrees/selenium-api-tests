@@ -34,11 +34,15 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
             "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
-        // A device id is four hyphen-separated profile ids (hardware, platform,
-        // browser, ...). Used to find the rendered id regardless of the label
-        // each language's template puts in front of it.
-        private static readonly Regex DeviceIdPattern =
-            new Regex(@"\d+-\d+-\d+-\d+", RegexOptions.Compiled);
+        // Device type is the one detection result every example renders, with the
+        // same label and the same value in all six languages. It is also absent
+        // from the user agent itself, so a page that merely echoed the request
+        // cannot satisfy it - unlike the vendor and version values, which appear
+        // verbatim in the user agent string.
+        private static readonly Regex DeviceTypePattern =
+            new Regex(
+                @"Device Type:?\s*</td>\s*<td[^>]*>\s*Desktop\s*<",
+                RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         private IExampleApp _example;
         private WebDriver _driver;
@@ -97,43 +101,15 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
 
             _driver.Navigate().GoToUrl(_example.BaseUrl);
 
-            // java's example page doesn't render a device id, so skip that check.
-            var isJava = string.Equals(
-                ExampleApps.SelectedLang, "java", StringComparison.OrdinalIgnoreCase);
-
             // The detection table is rendered server-side on the first response,
             // but wait so a slow example (cold start) doesn't cause a flake.
             new WebDriverWait(_driver, TimeSpan.FromSeconds(PageLoadTimeoutSeconds)).Until(
-                d => isJava
-                    ? d.PageSource.Contains("Chrome")
-                    : DeviceIdPattern.IsMatch(d.PageSource));
+                d => DeviceTypePattern.IsMatch(d.PageSource));
 
-            var pageSource = _driver.PageSource;
-
-            StringAssert.Contains(
-                pageSource, "Chrome",
-                "rendered page does not mention the detected browser (Chrome)");
-
-            if (!isJava)
-            {
-                var deviceId = DeviceIdPattern.Match(pageSource).Value;
-                Assert.IsFalse(
-                    IsAllZero(deviceId),
-                    $"device id '{deviceId}' is all zeros — desktop hardware was not detected");
-            }
-        }
-
-        /// <summary>True if every component of a hyphen-joined id is zero.</summary>
-        private static bool IsAllZero(string deviceId)
-        {
-            foreach (var part in deviceId.Split('-'))
-            {
-                if (part != "0")
-                {
-                    return false;
-                }
-            }
-            return true;
+            Assert.IsTrue(
+                DeviceTypePattern.IsMatch(_driver.PageSource),
+                "rendered page does not show a device type of 'Desktop', so the " +
+                "example did not render a real detection result server-side");
         }
 
         /// <summary>Quits the browser and stops the example app.</summary>
