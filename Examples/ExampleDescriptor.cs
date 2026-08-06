@@ -25,6 +25,12 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
     /// rust use the default, java uses /51Degrees.core.json, and node, python
     /// and php use /json.
     /// </param>
+    /// <param name="ClientResultsElementId">
+    /// Id of the element the example's page asks the shared examples helper to
+    /// render the client-side results into. Every example passes its own
+    /// targetId to fodExamples.bindDeviceCallback, so a test that reads those
+    /// rendered results has to be told which element to look in.
+    /// </param>
     public sealed record ExampleDescriptor(
         string Lang,
         string WorkingDir,
@@ -37,5 +43,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
         IReadOnlyList<string> BuildArgs = null,
         string RunArtifactGlob = null,
         int BuildTimeoutSeconds = 0,
-        string JsonEndpointPath = "/51dpipeline/json");
+        string JsonEndpointPath = "/51dpipeline/json",
+        string ClientResultsElementId = "content");
 }
