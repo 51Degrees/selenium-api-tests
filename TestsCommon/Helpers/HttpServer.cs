@@ -89,6 +89,20 @@ namespace FiftyOne.Pipeline.Cloud.Tests.Common.Helpers
         }
 
         /// <summary>
+        /// A <see cref="ProxyRoutes"/> key ending in '/' matches everything
+        /// beneath it; any other key matches that one path exactly. The
+        /// distinction matters because a prefix match on '/51Degrees.core.js'
+        /// also captures '/51Degrees.core.json', which is a separate endpoint
+        /// in the java web integration.
+        /// </summary>
+        private static bool RouteMatches(string routeKey, string path)
+        {
+            return routeKey.EndsWith("/", StringComparison.Ordinal)
+                ? path.StartsWith(routeKey, StringComparison.OrdinalIgnoreCase)
+                : string.Equals(path, routeKey, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
         /// Reset the <see cref="RequestCount"/> counter to zero.
         /// </summary>
         public void ResetRequests()
@@ -175,8 +189,7 @@ namespace FiftyOne.Pipeline.Cloud.Tests.Common.Helpers
                 {
                     foreach (var route in ProxyRoutes)
                     {
-                        if (req.Url.AbsolutePath.StartsWith(
-                            route.Key, StringComparison.OrdinalIgnoreCase))
+                        if (RouteMatches(route.Key, req.Url.AbsolutePath))
                         {
                             proxyRouteTarget = route.Value;
                             break;
