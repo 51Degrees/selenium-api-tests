@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -55,6 +56,27 @@ namespace FiftyOne.Pipeline.Cloud.Tests.Common.Helpers
         /// </summary>
         public string ProxyAllTo { get; private set; }
 
+        /// <summary>
+        /// Path prefixes proxied to another server, e.g. the example app
+        /// under test.
+        /// </summary>
+        public IReadOnlyDictionary<string, string> ProxyRoutes { get; set; }
+
+        /// <summary>
+        /// Response headers forced onto responses proxied via
+        /// <see cref="ProxyRoutes"/>.
+        /// </summary>
+        public IReadOnlyDictionary<string, string> ProxiedHeaderOverrides { get; set; }
+
+        /// <summary>
+        /// Method and path of each request handled since the last reset.
+        /// Written by the listen loop and read from the test thread while the
+        /// server is live, so it must tolerate concurrent access: enumerating
+        /// a <see cref="ConcurrentQueue{T}"/> takes a snapshot rather than
+        /// throwing when a request arrives mid-read.
+        /// </summary>
+        public ConcurrentQueue<string> RequestLog { get; } = new ConcurrentQueue<string>();
+
         private static readonly HttpClient _httpClient = new HttpClient();
 
         /// <summary>
@@ -67,11 +89,26 @@ namespace FiftyOne.Pipeline.Cloud.Tests.Common.Helpers
         }
 
         /// <summary>
+        /// A <see cref="ProxyRoutes"/> key ending in '/' matches everything
+        /// beneath it; any other key matches that one path exactly. The
+        /// distinction matters because a prefix match on '/51Degrees.core.js'
+        /// also captures '/51Degrees.core.json', which is a separate endpoint
+        /// in the java web integration.
+        /// </summary>
+        private static bool RouteMatches(string routeKey, string path)
+        {
+            return routeKey.EndsWith("/", StringComparison.Ordinal)
+                ? path.StartsWith(routeKey, StringComparison.OrdinalIgnoreCase)
+                : string.Equals(path, routeKey, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
         /// Reset the <see cref="RequestCount"/> counter to zero.
         /// </summary>
         public void ResetRequests()
         {
             RequestCount = 0;
+            RequestLog.Clear();
         }
 
         /// <summary>
@@ -142,11 +179,34 @@ namespace FiftyOne.Pipeline.Cloud.Tests.Common.Helpers
 
                 RequestCount = RequestCount + 1;
 
+                if (req.Url != null)
+                {
+                    RequestLog.Enqueue($"{req.HttpMethod} {req.Url.AbsolutePath}");
+                }
+
+                string proxyRouteTarget = null;
+                if (ProxyRoutes != null && req.Url != null)
+                {
+                    foreach (var route in ProxyRoutes)
+                    {
+                        if (RouteMatches(route.Key, req.Url.AbsolutePath))
+                        {
+                            proxyRouteTarget = route.Value;
+                            break;
+                        }
+                    }
+                }
+
                 try
                 {
                     if (ProxyAllTo != null)
                     {
                         await ProxyTo(ProxyAllTo, req, resp, addExtraHeaders: true);
+                    }
+                    else if (proxyRouteTarget != null)
+                    {
+                        await ProxyTo(proxyRouteTarget, req, resp,
+                            addExtraHeaders: false, ProxiedHeaderOverrides);
                     }
                     else if (CloudUrl != null
                         && req.Url != null
@@ -181,7 +241,8 @@ namespace FiftyOne.Pipeline.Cloud.Tests.Common.Helpers
             string baseUrl,
             HttpListenerRequest req,
             HttpListenerResponse resp,
-            bool addExtraHeaders)
+            bool addExtraHeaders,
+            IReadOnlyDictionary<string, string> headerOverrides = null)
         {
             var targetUri = new Uri(new Uri(baseUrl), req.Url.PathAndQuery.TrimStart('/'));
             using var outgoing = new HttpRequestMessage(new HttpMethod(req.HttpMethod), targetUri);
@@ -229,6 +290,14 @@ namespace FiftyOne.Pipeline.Cloud.Tests.Common.Helpers
 
             CopyResponseHeaders(response.Headers, resp);
             CopyResponseHeaders(response.Content.Headers, resp);
+
+            if (headerOverrides != null)
+            {
+                foreach (var kv in headerOverrides)
+                {
+                    resp.Headers[kv.Key] = kv.Value;
+                }
+            }
 
             if (addExtraHeaders && ExtraResponseHeaders != null)
             {

@@ -18,6 +18,13 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
     /// <param name="BuildArgs">Arguments for the build executable.</param>
     /// <param name="RunArtifactGlob">Optional glob, relative to WorkingDir, resolved after the build and appended as the final run argument.</param>
     /// <param name="BuildTimeoutSeconds">Seconds to wait for the build to finish.</param>
+    /// <param name="JsonEndpointPath">
+    /// Path the client-side script posts refreshed evidence to. Each web
+    /// integration picks its own, so a test that proxies or counts those
+    /// requests has to ask the descriptor rather than assume one: dotnet and
+    /// rust use the default, java uses /51Degrees.core.json, and node, python
+    /// and php use /json.
+    /// </param>
     /// <param name="ClientResultsElementId">
     /// Id of the element the example's page asks the shared examples helper to
     /// render the client-side results into. Every example passes its own
@@ -36,5 +43,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
         IReadOnlyList<string> BuildArgs = null,
         string RunArtifactGlob = null,
         int BuildTimeoutSeconds = 0,
+        string JsonEndpointPath = "/51dpipeline/json",
         string ClientResultsElementId = "content");
 }

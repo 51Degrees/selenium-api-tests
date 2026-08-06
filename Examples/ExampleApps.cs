@@ -20,6 +20,17 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
             Environment.GetEnvironmentVariable(ExampleLangVar) ?? "dotnet";
 
         /// <summary>
+        /// Path the selected language's client-side script posts refreshed
+        /// evidence to. Read from the descriptor rather than the running app,
+        /// so it is available for the CI case too, where EXAMPLE_URL points at
+        /// an already-running example and no descriptor is used to launch it.
+        /// </summary>
+        public static string JsonEndpointPath =>
+            Descriptors.TryGetValue(SelectedLang, out var descriptor)
+                ? descriptor.JsonEndpointPath
+                : "/51dpipeline/json";
+
+        /// <summary>
         /// Element the selected language's page renders its client-side results
         /// into. Read from the descriptor so it is available for the CI case
         /// too, where EXAMPLE_URL points at an already-running example.
@@ -98,6 +109,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     BuildArgs: new[] { "-pl", "web/getting-started.cloud", "-am", "package", "-DskipTests" },
                     RunArtifactGlob: "web/getting-started.cloud/target/*-jar-with-dependencies.jar",
                     BuildTimeoutSeconds: 600,
+                    JsonEndpointPath: "/51Degrees.core.json",
                     // the java page renders the client-side results into its
                     // Apple detection section rather than the shared container
                     ClientResultsElementId: "apple-detection"),
@@ -123,7 +135,8 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     BuildCommand: "npm",
                     // package.json lives one level up from examples/cloud/gettingstarted-web
                     BuildArgs: new[] { "install", "--prefix", "../../.." },
-                    BuildTimeoutSeconds: 300),
+                    BuildTimeoutSeconds: 300,
+                    JsonEndpointPath: "/json"),
                 ["python"] = new ExampleDescriptor(
                     Lang: "python",
                     WorkingDir: Path.Combine(
@@ -147,7 +160,8 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     },
                     BuildCommand: "bash",
                     BuildArgs: new[] { "-c", "python3 -m venv .venv && .venv/bin/pip install -e ." },
-                    BuildTimeoutSeconds: 600),
+                    BuildTimeoutSeconds: 600,
+                    JsonEndpointPath: "/json"),
                 ["php"] = new ExampleDescriptor(
                     Lang: "php",
                     WorkingDir: Path.Combine(
@@ -171,7 +185,8 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     },
                     BuildCommand: "composer",
                     BuildArgs: new[] { "install", "--working-dir=.." },
-                    BuildTimeoutSeconds: 600),
+                    BuildTimeoutSeconds: 600,
+                    JsonEndpointPath: "/json"),
                 ["rust"] = new ExampleDescriptor(
                     Lang: "rust",
                     // the examples form their own workspace under examples/;
