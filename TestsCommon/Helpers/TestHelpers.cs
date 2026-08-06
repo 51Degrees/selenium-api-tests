@@ -103,11 +103,15 @@ namespace FiftyOne.Pipeline.Cloud.Tests.Common.Helpers
         /// Creates an HttpListener that serves <paramref name="pageData"/>
         /// for page paths and proxies the 51Degrees script and pipeline
         /// endpoints to <paramref name="exampleUrl"/> without caching.
+        /// <paramref name="jsonEndpointPath"/> is the path the client-side
+        /// script posts refreshed evidence to, which differs per web
+        /// integration, so the caller supplies the one its example uses.
         /// </summary>
         public static ServerListener ExampleProxyListener(
             string clientUrl,
             string exampleUrl,
             string pageData,
+            string jsonEndpointPath,
             CancellationToken token)
         {
             var listener = new HttpListener();
@@ -119,7 +123,7 @@ namespace FiftyOne.Pipeline.Cloud.Tests.Common.Helpers
                 ProxyRoutes = new Dictionary<string, string>
                 {
                     ["/51Degrees.core.js"] = exampleUrl,
-                    ["/51dpipeline/"] = exampleUrl,
+                    [jsonEndpointPath] = exampleUrl,
                 },
                 ProxiedHeaderOverrides = new Dictionary<string, string>
                 {
