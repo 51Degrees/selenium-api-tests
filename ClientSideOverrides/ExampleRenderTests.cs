@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FiftyOne.Pipeline.Cloud.SeleniumTests.Examples;
@@ -34,11 +34,25 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
             "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
-        // A device id is four hyphen-separated profile ids (hardware, platform,
-        // browser, ...). Used to find the rendered id regardless of the label
-        // each language's template puts in front of it.
-        private static readonly Regex DeviceIdPattern =
-            new Regex(@"\d+-\d+-\d+-\d+", RegexOptions.Compiled);
+        // Device type is the one detection result every example renders, with the
+        // same label and the same value in all six languages. It is also absent
+        // from the user agent itself, so a page that merely echoed the request
+        // cannot satisfy it - unlike the vendor and version values, which appear
+        // verbatim in the user agent string.
+        //
+        // Anchoring on the label cell and reading its sibling keeps this on the
+        // server-rendered table. The shared examples helper appends a second
+        // table of client-side results with overlapping labels, so matching on
+        // the page as a whole would pick up whichever came first.
+        private const string DeviceTypeCell =
+            "//td[normalize-space()='Device Type:' or normalize-space()='Device Type']";
+
+        // Read from the table that holds the device type, so this is the
+        // server-rendered id rather than the refined one the helper renders
+        // client side under the same label.
+        private const string DeviceIdCellInSameTable =
+            DeviceTypeCell +
+            "/ancestor::table[1]//td[normalize-space()='Device Id:' or normalize-space()='Device Id']";
 
         private IExampleApp _example;
         private WebDriver _driver;
@@ -97,43 +111,44 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
 
             _driver.Navigate().GoToUrl(_example.BaseUrl);
 
-            // java's example page doesn't render a device id, so skip that check.
-            var isJava = string.Equals(
-                ExampleApps.SelectedLang, "java", StringComparison.OrdinalIgnoreCase);
-
             // The detection table is rendered server-side on the first response,
             // but wait so a slow example (cold start) doesn't cause a flake.
             new WebDriverWait(_driver, TimeSpan.FromSeconds(PageLoadTimeoutSeconds)).Until(
-                d => isJava
-                    ? d.PageSource.Contains("Chrome")
-                    : DeviceIdPattern.IsMatch(d.PageSource));
+                d => ValueOfCellAfter(d, DeviceTypeCell) != null);
 
-            var pageSource = _driver.PageSource;
+            Assert.AreEqual(
+                "Desktop", ValueOfCellAfter(_driver, DeviceTypeCell),
+                "rendered page does not show a device type of 'Desktop', so the " +
+                "example did not render a real detection result server-side");
 
-            StringAssert.Contains(
-                pageSource, "Chrome",
-                "rendered page does not mention the detected browser (Chrome)");
-
-            if (!isJava)
+            // The device id is the compact form of the whole result, so check it
+            // where it is rendered. java and rust do not render one server-side,
+            // and that is a property of those pages rather than of detection, so
+            // it is checked where present rather than demanded everywhere.
+            var deviceId = ValueOfCellAfter(_driver, DeviceIdCellInSameTable);
+            if (deviceId != null)
             {
-                var deviceId = DeviceIdPattern.Match(pageSource).Value;
+                Assert.IsFalse(string.IsNullOrEmpty(deviceId),
+                    "the device id cell is rendered but empty");
                 Assert.IsFalse(
-                    IsAllZero(deviceId),
-                    $"device id '{deviceId}' is all zeros — desktop hardware was not detected");
+                    deviceId.Split('-').All(part => part == "0"),
+                    $"the rendered device id is '{deviceId}', so no profile was matched");
             }
         }
 
-        /// <summary>True if every component of a hyphen-joined id is zero.</summary>
-        private static bool IsAllZero(string deviceId)
+        /// <summary>
+        /// Text of the cell following the first one matching
+        /// <paramref name="labelCellXPath"/>, or null when there is no such row.
+        /// </summary>
+        private static string ValueOfCellAfter(ISearchContext context, string labelCellXPath)
         {
-            foreach (var part in deviceId.Split('-'))
+            var labels = context.FindElements(By.XPath(labelCellXPath));
+            if (labels.Count == 0)
             {
-                if (part != "0")
-                {
-                    return false;
-                }
+                return null;
             }
-            return true;
+            var values = labels[0].FindElements(By.XPath("following-sibling::td[1]"));
+            return values.Count == 0 ? null : values[0].Text.Trim();
         }
 
         /// <summary>Quits the browser and stops the example app.</summary>
