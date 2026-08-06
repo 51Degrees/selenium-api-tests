@@ -36,6 +36,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
         // vendors from the same release, so they are the same in all languages.
         private const string ScreenWidthLabel = "Screen width (pixels):";
         private const string ScreenHeightLabel = "Screen height (pixels):";
+        private const string DeviceIdLabel = "Device Id:";
 
         private IExampleApp _example;
         private WebDriver _driver;
@@ -130,6 +131,27 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
             Assert.AreEqual(
                 height.ToString(), rendered[ScreenHeightLabel],
                 "the screen height rendered on the page does not match the emulated height");
+
+            // The device id is only rendered by examples whose copy of the
+            // shared helper is current. An example still carrying an older copy
+            // is a stale vendored asset rather than a detection failure, so say
+            // which it is instead of reporting a missing row as a bad result.
+            if (!rendered.TryGetValue(DeviceIdLabel, out var deviceId))
+            {
+                Assert.Inconclusive(
+                    $"The '{ExampleApps.SelectedLang}' example renders no '{DeviceIdLabel}' " +
+                    "row, so its copy of the shared examples helper predates the row " +
+                    $"being added. Rendered labels: [{string.Join(", ", rendered.Keys)}].");
+                return;
+            }
+
+            Assert.IsFalse(string.IsNullOrEmpty(deviceId),
+                "the device id rendered on the page is empty, so the client-side " +
+                "results reached the page without a resolved device id");
+            Assert.IsFalse(
+                deviceId.Split('-').All(part => part == "0"),
+                $"the device id rendered on the page is '{deviceId}', which means " +
+                "no profile was matched");
         }
 
         /// <summary>
