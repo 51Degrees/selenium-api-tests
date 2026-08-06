@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FiftyOne.Pipeline.Cloud.SeleniumTests.Examples;
@@ -39,10 +39,20 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
         // from the user agent itself, so a page that merely echoed the request
         // cannot satisfy it - unlike the vendor and version values, which appear
         // verbatim in the user agent string.
-        private static readonly Regex DeviceTypePattern =
-            new Regex(
-                @"Device Type:?\s*</td>\s*<td[^>]*>\s*Desktop\s*<",
-                RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        //
+        // Anchoring on the label cell and reading its sibling keeps this on the
+        // server-rendered table. The shared examples helper appends a second
+        // table of client-side results with overlapping labels, so matching on
+        // the page as a whole would pick up whichever came first.
+        private const string DeviceTypeCell =
+            "//td[normalize-space()='Device Type:' or normalize-space()='Device Type']";
+
+        // Read from the table that holds the device type, so this is the
+        // server-rendered id rather than the refined one the helper renders
+        // client side under the same label.
+        private const string DeviceIdCellInSameTable =
+            DeviceTypeCell +
+            "/ancestor::table[1]//td[normalize-space()='Device Id:' or normalize-space()='Device Id']";
 
         private IExampleApp _example;
         private WebDriver _driver;
@@ -104,12 +114,41 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
             // The detection table is rendered server-side on the first response,
             // but wait so a slow example (cold start) doesn't cause a flake.
             new WebDriverWait(_driver, TimeSpan.FromSeconds(PageLoadTimeoutSeconds)).Until(
-                d => DeviceTypePattern.IsMatch(d.PageSource));
+                d => ValueOfCellAfter(d, DeviceTypeCell) != null);
 
-            Assert.IsTrue(
-                DeviceTypePattern.IsMatch(_driver.PageSource),
+            Assert.AreEqual(
+                "Desktop", ValueOfCellAfter(_driver, DeviceTypeCell),
                 "rendered page does not show a device type of 'Desktop', so the " +
                 "example did not render a real detection result server-side");
+
+            // The device id is the compact form of the whole result, so check it
+            // where it is rendered. java and rust do not render one server-side,
+            // and that is a property of those pages rather than of detection, so
+            // it is checked where present rather than demanded everywhere.
+            var deviceId = ValueOfCellAfter(_driver, DeviceIdCellInSameTable);
+            if (deviceId != null)
+            {
+                Assert.IsFalse(string.IsNullOrEmpty(deviceId),
+                    "the device id cell is rendered but empty");
+                Assert.IsFalse(
+                    deviceId.Split('-').All(part => part == "0"),
+                    $"the rendered device id is '{deviceId}', so no profile was matched");
+            }
+        }
+
+        /// <summary>
+        /// Text of the cell following the first one matching
+        /// <paramref name="labelCellXPath"/>, or null when there is no such row.
+        /// </summary>
+        private static string ValueOfCellAfter(ISearchContext context, string labelCellXPath)
+        {
+            var labels = context.FindElements(By.XPath(labelCellXPath));
+            if (labels.Count == 0)
+            {
+                return null;
+            }
+            var values = labels[0].FindElements(By.XPath("following-sibling::td[1]"));
+            return values.Count == 0 ? null : values[0].Text.Trim();
         }
 
         /// <summary>Quits the browser and stops the example app.</summary>
