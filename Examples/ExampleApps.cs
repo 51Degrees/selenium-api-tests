@@ -20,6 +20,16 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
             Environment.GetEnvironmentVariable(ExampleLangVar) ?? "dotnet";
 
         /// <summary>
+        /// Element the selected language's page renders its client-side results
+        /// into. Read from the descriptor so it is available for the CI case
+        /// too, where EXAMPLE_URL points at an already-running example.
+        /// </summary>
+        public static string ClientResultsElementId =>
+            Descriptors.TryGetValue(SelectedLang, out var descriptor)
+                ? descriptor.ClientResultsElementId
+                : "content";
+
+        /// <summary>
         /// Attempts to create the example provider for the current environment.
         /// Returns false when no descriptor is registered for the selected language,
         /// letting the caller decide whether that should fail the test or skip it.
@@ -87,7 +97,10 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     BuildCommand: "mvn",
                     BuildArgs: new[] { "-pl", "web/getting-started.cloud", "-am", "package", "-DskipTests" },
                     RunArtifactGlob: "web/getting-started.cloud/target/*-jar-with-dependencies.jar",
-                    BuildTimeoutSeconds: 600),
+                    BuildTimeoutSeconds: 600,
+                    // the java page renders the client-side results into its
+                    // Apple detection section rather than the shared container
+                    ClientResultsElementId: "apple-detection"),
                 ["node"] = new ExampleDescriptor(
                     Lang: "node",
                     WorkingDir: Path.Combine(

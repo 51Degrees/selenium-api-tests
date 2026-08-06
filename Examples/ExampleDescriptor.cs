@@ -18,6 +18,12 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
     /// <param name="BuildArgs">Arguments for the build executable.</param>
     /// <param name="RunArtifactGlob">Optional glob, relative to WorkingDir, resolved after the build and appended as the final run argument.</param>
     /// <param name="BuildTimeoutSeconds">Seconds to wait for the build to finish.</param>
+    /// <param name="ClientResultsElementId">
+    /// Id of the element the example's page asks the shared examples helper to
+    /// render the client-side results into. Every example passes its own
+    /// targetId to fodExamples.bindDeviceCallback, so a test that reads those
+    /// rendered results has to be told which element to look in.
+    /// </param>
     public sealed record ExampleDescriptor(
         string Lang,
         string WorkingDir,
@@ -29,5 +35,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
         string BuildCommand = null,
         IReadOnlyList<string> BuildArgs = null,
         string RunArtifactGlob = null,
-        int BuildTimeoutSeconds = 0);
+        int BuildTimeoutSeconds = 0,
+        string ClientResultsElementId = "content");
 }
