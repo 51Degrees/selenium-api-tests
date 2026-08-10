@@ -123,7 +123,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
 
             _driver.Navigate().GoToUrl(_proxyUrl);
 
-            var rendered = WaitForRenderedResults();
+            var rendered = WaitForRenderedResults(width.ToString(), height.ToString());
 
             Assert.AreEqual(
                 width.ToString(), rendered[ScreenWidthLabel],
@@ -158,7 +158,18 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
         /// Waits for the example's page to render the client-side results, then
         /// reads the label and value cells back out of it.
         /// </summary>
-        private Dictionary<string, string> WaitForRenderedResults()
+        /// <remarks>
+        /// The example first renders the User-Agent-only (server-side) result,
+        /// then a client-side callback overwrites it with the values resolved
+        /// from the browser's evidence. Both carry the same labels and the
+        /// server-side row is present from first paint, so waiting merely for a
+        /// label to appear returns before the callback runs and reads the
+        /// server-side value on slower machines. Wait until the rendered screen
+        /// width and height match the emulated values instead - that is the
+        /// signal that the client-side result has actually landed.
+        /// </remarks>
+        private Dictionary<string, string> WaitForRenderedResults(
+            string expectedWidth, string expectedHeight)
         {
             var containerId = ExampleApps.ClientResultsElementId;
             var by = By.CssSelector($"#{containerId} tr");
@@ -166,16 +177,22 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
             try
             {
                 new WebDriverWait(_driver, TimeSpan.FromSeconds(RenderTimeoutSeconds))
-                    .Until(d => ReadRows(d, by).ContainsKey(ScreenWidthLabel));
+                    .Until(d =>
+                    {
+                        var rows = ReadRows(d, by);
+                        return rows.GetValueOrDefault(ScreenWidthLabel) == expectedWidth
+                            && rows.GetValueOrDefault(ScreenHeightLabel) == expectedHeight;
+                    });
             }
             catch (WebDriverTimeoutException)
             {
                 var rows = ReadRows(_driver, by);
                 Assert.Fail(
                     $"The '{ExampleApps.SelectedLang}' example did not render the " +
-                    $"client-side results into '#{containerId}' within " +
-                    $"{RenderTimeoutSeconds}s. Rendered labels: " +
-                    $"[{string.Join(", ", rows.Keys)}].");
+                    $"client-side screen size into '#{containerId}' within " +
+                    $"{RenderTimeoutSeconds}s. Expected '{ScreenWidthLabel}' " +
+                    $"'{expectedWidth}' and '{ScreenHeightLabel}' '{expectedHeight}', " +
+                    $"but rendered [{string.Join(", ", rows.Select(r => $"{r.Key} '{r.Value}'"))}].");
             }
 
             return ReadRows(_driver, by);
