@@ -2,12 +2,14 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
+using OpenQA.Selenium.Chromium;
 using OpenQA.Selenium.Support.UI;
 using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading;
 using FiftyOne.Pipeline.Cloud.Tests.Common.TestElements;
+using FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers;
 
 namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
 {
@@ -20,7 +22,10 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
         private string ClientServerUrl;
         private HttpListener clientServer;
         private CancellationTokenSource clientServerTokenSource;
-        private ChromeDriver driver;
+        // Chromium specific: this test drives geolocation through CDP, which is
+        // not available on a RemoteWebDriver. It is [Ignore]d for an unrelated
+        // headless problem, so that limitation is not exercised today.
+        private ChromiumDriver driver;
         private const int JavaScriptTimeout = 60; // in seconds
 
         /// <summary>
@@ -83,12 +88,9 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
         public void JavaScript_ClientSideOverrides()
         {
             var chromeOptions = new ChromeOptions();
-            chromeOptions.AcceptInsecureCertificates = true;
-            chromeOptions.AddArgument("--headless");
-
             chromeOptions.SetLoggingPreference(LogType.Browser, LogLevel.All);
 
-            driver = new ChromeDriver(chromeOptions);
+            driver = (ChromiumDriver)WebDriverFactory.Create(chromeOptions);
 
             // Allow geo-location on the test client website.
             driver.ExecuteCdpCommand("Browser.grantPermissions",

@@ -3,7 +3,6 @@ using FiftyOne.Pipeline.Cloud.Tests.Common.TestElements;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
-using OpenQA.Selenium.Remote;
 using OpenQA.Selenium.Support.UI;
 using FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers;
 using System;
@@ -69,11 +68,9 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests
         /// </summary>
         private ChromeOptions CreateBaseOptions()
         {
-            var options = new ChromeOptions();
-            options.AddArgument("--headless");
-            options.AddArgument("--no-sandbox");
-            options.AddArgument("--disable-dev-shm-usage");
-            return options;
+            // Headless and the CI stability arguments are applied by
+            // WebDriverFactory, so this only carries what is specific here.
+            return new ChromeOptions();
         }
 
         /// <summary>
@@ -82,12 +79,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests
         /// </summary>
         private IWebDriver CreateDriver(ChromeOptions options)
         {
-            if (ExternalSeleniumHelper.IsExternalSelenium(out var seleniumUrl))
-            {
-                ExternalSeleniumHelper.AddExternalSeleniumArguments(options);
-                return new RemoteWebDriver(new Uri(seleniumUrl), options);
-            }
-            return new ChromeDriver(options);
+            return WebDriverFactory.Create(options);
         }
 
         /// <summary>
