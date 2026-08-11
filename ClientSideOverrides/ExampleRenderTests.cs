@@ -10,7 +10,6 @@ using FiftyOne.Pipeline.Cloud.Tests.Common.TestElements;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
-using OpenQA.Selenium.Remote;
 using OpenQA.Selenium.Support.UI;
 
 namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
@@ -95,19 +94,9 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
         public void Example_RendersRealDetectionResult()
         {
             var chromeOptions = new ChromeOptions();
-            chromeOptions.AcceptInsecureCertificates = true;
-            chromeOptions.AddArgument("--headless");
             chromeOptions.AddArgument($"--user-agent={DesktopChromeUserAgent}");
 
-            if (ExternalSeleniumHelper.IsExternalSelenium(out var seleniumUrl))
-            {
-                ExternalSeleniumHelper.AddExternalSeleniumArguments(chromeOptions);
-                _driver = new RemoteWebDriver(new Uri(seleniumUrl), chromeOptions);
-            }
-            else
-            {
-                _driver = new ChromeDriver(chromeOptions);
-            }
+            _driver = WebDriverFactory.Create(chromeOptions);
 
             _driver.Navigate().GoToUrl(_example.BaseUrl);
 

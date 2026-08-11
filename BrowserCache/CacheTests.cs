@@ -6,7 +6,6 @@ using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Edge;
 using OpenQA.Selenium.Firefox;
-using OpenQA.Selenium.Remote;
 using OpenQA.Selenium.Support.UI;
 using System;
 using System.Net;
@@ -85,19 +84,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.BrowserCache
         [TestMethod]
         public void JavaScript_BrowserCache_Chrome()
         {
-            var options = new ChromeOptions();
-            options.AcceptInsecureCertificates = true;
-            options.AddArgument("--headless");
-
-            if (ExternalSeleniumHelper.IsExternalSelenium(out var seleniumUrl))
-            {
-                ExternalSeleniumHelper.AddExternalSeleniumArguments(options);
-                driver = new RemoteWebDriver(new Uri(seleniumUrl), options);
-            }
-            else
-            {
-                driver = new ChromeDriver(options);
-            }
+            driver = WebDriverFactory.Create(new ChromeOptions());
 
             RunTest(driver);
         }
@@ -106,22 +93,9 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.BrowserCache
         /// Browser cache behaviour in Edge.
         /// </summary>
         [TestMethod]
-        [Ignore("Headless Edge on ubuntu-latest hangs on first navigation; Chrome and Firefox provide sufficient coverage.")]
         public void JavaScript_BrowserCache_Edge()
         {
-            var options = new EdgeOptions();
-            options.AcceptInsecureCertificates = true;
-            options.AddArgument("--headless");
-
-            if (ExternalSeleniumHelper.IsExternalSelenium(out var seleniumUrl))
-            {
-                ExternalSeleniumHelper.AddExternalSeleniumArguments(options);
-                driver = new RemoteWebDriver(new Uri(seleniumUrl), options);
-            }
-            else
-            {
-                driver = new EdgeDriver(options);
-            }
+            driver = WebDriverFactory.Create(new EdgeOptions());
 
             RunTest(driver);
         }
@@ -132,19 +106,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.BrowserCache
         [TestMethod]
         public void JavaScript_BrowserCache_FireFox()
         {
-            var options = new FirefoxOptions();
-            options.AcceptInsecureCertificates = true;
-            options.AddArgument("--headless");
-
-            if (ExternalSeleniumHelper.IsExternalSelenium(out var seleniumUrl))
-            {
-                ExternalSeleniumHelper.AddExternalSeleniumArguments(options);
-                driver = new RemoteWebDriver(new Uri(seleniumUrl), options);
-            }
-            else
-            {
-                driver = new FirefoxDriver(options);
-            }
+            driver = WebDriverFactory.Create(new FirefoxOptions());
 
             RunTest(driver);
         }

@@ -2,7 +2,6 @@ using FiftyOne.Pipeline.Cloud.Tests.Common.Helpers;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
-using OpenQA.Selenium.Remote;
 using OpenQA.Selenium.Support.UI;
 using System;
 using System.Linq;
@@ -102,18 +101,8 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.COEP
             }, token);
 
             var options = new ChromeOptions();
-            options.AcceptInsecureCertificates = true;
-            options.AddArgument("--headless");
             options.SetLoggingPreference(LogType.Browser, LogLevel.All);
-            if (ExternalSeleniumHelper.IsExternalSelenium(out var seleniumUrl))
-            {
-                ExternalSeleniumHelper.AddExternalSeleniumArguments(options);
-                driver = new RemoteWebDriver(new Uri(seleniumUrl), options);
-            }
-            else
-            {
-                driver = new ChromeDriver(options);
-            }
+            driver = WebDriverFactory.Create(options);
         }
 
         /// <summary>

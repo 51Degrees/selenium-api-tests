@@ -2,7 +2,6 @@ using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using OpenQA.Selenium.Edge;
 using OpenQA.Selenium;
-using OpenQA.Selenium.Remote;
 using System.Linq;
 using System.Net;
 using System.Threading;
@@ -16,7 +15,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Browsers
     /// Performs Selenium Tests using an Edge WebDriver.
     /// Browser and HTTP server are created once per class for performance.
     /// </summary>
-    [Ignore("Headless Edge on ubuntu-latest hangs on first navigation; Chrome and Firefox provide sufficient coverage.")]
     [TestClass, TestCategory("CloudInternal")]
     public class EdgeTests : SeleniumTestsBase
     {
@@ -36,25 +34,17 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Browsers
             s_cts = new CancellationTokenSource();
             s_clientServer = TestHelpers.SimpleListener(s_clientServerUrl, s_cts.Token);
 
-            var options = new EdgeOptions();
-            options.AcceptInsecureCertificates = true;
-            options.AddArgument("--headless");
-            if (ExternalSeleniumHelper.IsExternalSelenium(out var seleniumUrl))
+            try
             {
-                ExternalSeleniumHelper.AddExternalSeleniumArguments(options);
-                s_driver = new RemoteWebDriver(new Uri(seleniumUrl), options);
+                s_driver = WebDriverFactory.Create(new EdgeOptions());
             }
-            else
+            // A missing browser on a developer machine is not a test failure. A
+            // grid that will not hand one out is, so do not swallow that.
+            catch (WebDriverException) when (
+                ExternalSeleniumHelper.IsExternalSelenium(out _) == false)
             {
-                try
-                {
-                    s_driver = new EdgeDriver(options);
-                }
-                catch (WebDriverException)
-                {
-                    Assert.Inconclusive("Could not create an EdgeDriver, check " +
-                        "that the MS edge driver is installed");
-                }
+                Assert.Inconclusive("Could not create an EdgeDriver, check " +
+                    "that the MS edge driver is installed");
             }
         }
 
