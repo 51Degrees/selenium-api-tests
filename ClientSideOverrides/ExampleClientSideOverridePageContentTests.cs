@@ -188,6 +188,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
                 // then register a flag that flips once the callback has run. The
                 // example's own fod.complete handler renders the client-side rows,
                 // so by the time the flag is set those rows are on the page.
+                var deadline = DateTime.UtcNow.AddSeconds(RenderTimeoutSeconds);
                 new WebDriverWait(_driver, TimeSpan.FromSeconds(RenderTimeoutSeconds)).Until(
                     _ => "function".Equals(js.ExecuteScript(
                         "return (typeof fod !== 'undefined' && fod) ? typeof fod.complete : 'none';")));
@@ -195,7 +196,12 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
                     "window.__clientSideComplete = false;" +
                     "fod.complete(function () { window.__clientSideComplete = true; });");
 
-                var wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(RenderTimeoutSeconds));
+                // One deadline across both waits, so a hook that shows up late
+                // followed by a callback that never fires still costs
+                // RenderTimeoutSeconds in total rather than twice that.
+                var remaining = deadline - DateTime.UtcNow;
+                var wait = new WebDriverWait(
+                    _driver, remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero);
                 wait.IgnoreExceptionTypes(typeof(StaleElementReferenceException));
                 wait.Until(d =>
                 {
@@ -204,8 +210,11 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
                         return false;
                     }
 
+                    // Both rows the caller indexes have to be there, or its
+                    // indexer throws KeyNotFoundException instead of asserting.
                     var rows = ReadRows(d, by);
-                    if (!rows.ContainsKey(ScreenWidthLabel))
+                    if (!rows.ContainsKey(ScreenWidthLabel)
+                        || !rows.ContainsKey(ScreenHeightLabel))
                     {
                         return false;
                     }
