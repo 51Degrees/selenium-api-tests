@@ -155,30 +155,85 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
         }
 
         /// <summary>
-        /// Waits for the example's page to render the client-side results, then
-        /// reads the label and value cells back out of it.
+        /// Waits for the example's client-side callback to run and render its
+        /// results, then reads the label and value cells back out of the page.
         /// </summary>
+        /// <remarks>
+        /// The example renders the User-Agent-only (server-side) result first and
+        /// a client-side callback later overwrites it with the values resolved
+        /// from the browser's evidence. Both rows carry the same labels and the
+        /// server-side row is present from first paint, so waiting for a label -
+        /// or for a value, which is only a proxy while the server-side result
+        /// differs from the emulated size - can return before the callback runs.
+        /// Wait on <c>fod.complete</c>, the pipeline's own completion hook (the
+        /// same signal <see cref="ExampleClientSideOverrideTests"/> uses): once it
+        /// has fired the example's handler has written the client-side rows, so
+        /// the value assertions in the caller run against them and fail fast on a
+        /// wrong value rather than after the full timeout.
+        /// </remarks>
         private Dictionary<string, string> WaitForRenderedResults()
         {
             var containerId = ExampleApps.ClientResultsElementId;
             var by = By.CssSelector($"#{containerId} tr");
+            var js = (IJavaScriptExecutor)_driver;
 
+            // Keep the snapshot that satisfied the wait rather than re-reading the
+            // container, which a late re-render could leave without the expected
+            // rows, and ignore elements going stale while the callback rewrites
+            // them so a driver exception cannot escape the timeout handler.
+            var rendered = new Dictionary<string, string>();
             try
             {
-                new WebDriverWait(_driver, TimeSpan.FromSeconds(RenderTimeoutSeconds))
-                    .Until(d => ReadRows(d, by).ContainsKey(ScreenWidthLabel));
+                // Wait until the pipeline's client-side completion hook exists,
+                // then register a flag that flips once the callback has run. The
+                // example's own fod.complete handler renders the client-side rows,
+                // so by the time the flag is set those rows are on the page.
+                var deadline = DateTime.UtcNow.AddSeconds(RenderTimeoutSeconds);
+                new WebDriverWait(_driver, TimeSpan.FromSeconds(RenderTimeoutSeconds)).Until(
+                    _ => "function".Equals(js.ExecuteScript(
+                        "return (typeof fod !== 'undefined' && fod) ? typeof fod.complete : 'none';")));
+                js.ExecuteScript(
+                    "window.__clientSideComplete = false;" +
+                    "fod.complete(function () { window.__clientSideComplete = true; });");
+
+                // One deadline across both waits, so a hook that shows up late
+                // followed by a callback that never fires still costs
+                // RenderTimeoutSeconds in total rather than twice that.
+                var remaining = deadline - DateTime.UtcNow;
+                var wait = new WebDriverWait(
+                    _driver, remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero);
+                wait.IgnoreExceptionTypes(typeof(StaleElementReferenceException));
+                wait.Until(d =>
+                {
+                    if (!true.Equals(js.ExecuteScript("return window.__clientSideComplete === true;")))
+                    {
+                        return false;
+                    }
+
+                    // Both rows the caller indexes have to be there, or its
+                    // indexer throws KeyNotFoundException instead of asserting.
+                    var rows = ReadRows(d, by);
+                    if (!rows.ContainsKey(ScreenWidthLabel)
+                        || !rows.ContainsKey(ScreenHeightLabel))
+                    {
+                        return false;
+                    }
+
+                    rendered = rows;
+                    return true;
+                });
             }
             catch (WebDriverTimeoutException)
             {
                 var rows = ReadRows(_driver, by);
                 Assert.Fail(
-                    $"The '{ExampleApps.SelectedLang}' example did not render the " +
-                    $"client-side results into '#{containerId}' within " +
-                    $"{RenderTimeoutSeconds}s. Rendered labels: " +
-                    $"[{string.Join(", ", rows.Keys)}].");
+                    $"The '{ExampleApps.SelectedLang}' example's client-side callback " +
+                    $"did not complete and render into '#{containerId}' within " +
+                    $"{RenderTimeoutSeconds}s. Rendered " +
+                    $"[{string.Join(", ", rows.Select(r => $"{r.Key} '{r.Value}'"))}].");
             }
 
-            return ReadRows(_driver, by);
+            return rendered;
         }
 
         /// <summary>
