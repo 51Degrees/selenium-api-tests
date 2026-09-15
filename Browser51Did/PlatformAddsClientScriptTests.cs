@@ -11,10 +11,10 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Browser51Did;
 /// A page carrying the preference platform's tag and no client script tag
 /// at all.
 /// <para>
-/// James Rosewell, 15 September 2026. The platform has one route to the
-/// third party cookie result and to whether the regulation applies, which
-/// is the client script's object. Where that object is not on the page the
-/// platform adds the script itself, using the cloud that served it and the
+/// The platform has one route to the third party cookie result and to
+/// whether the regulation applies, which is the client script's object.
+/// Where the page has no client script tag the platform adds the script
+/// itself, using the cloud that served it and the
 /// resource key it already holds, and says in the console that it did. A
 /// second route would be a second answer to the same question, and a
 /// publisher who forgot the tag would get a dialog behaving differently
