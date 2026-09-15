@@ -3,91 +3,132 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
+using FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers;
+using FiftyOne.Pipeline.Cloud.Tests.Common;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Firefox;
+using OpenQA.Selenium.Remote;
 
 namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Browser51Did;
 
 /// <summary>
 /// Everything the browser acceptance tests share, being where the cloud
 /// is, which resource key to use, the two site names a cross site test
-/// needs, the browsers, and the guard that stops the whole class running
-/// against the old client script.
+/// needs, the browsers, and the guard that stops a test running against
+/// the old client script.
 /// <para>
-/// The harness is the same one <c>CrossBrowserContextTests</c> uses, being
-/// the container that terminates TLS itself, started by
-/// <c>ci/test.ps1</c> with a throwaway resource key and a throwaway
-/// context secret. These tests reuse its environment variables rather
-/// than adding a second set.
+/// The thing under test is a demo, a web app serving the pages these tests
+/// load, which every language mirrors, started with a cloud endpoint and a
+/// resource key. The preference platform and the shared store come from
+/// that cloud whichever demo is chosen. See <see cref="Demo"/>.
 /// </para>
 /// </summary>
 public static class Harness
 {
     /// <summary>
-    /// The cloud instance serving TLS itself, for example
-    /// https://localhost:8081. Shared with the cross browser context
-    /// tests, so one container serves both.
+    /// A setting read through the suite's own <see cref="TestConfig"/>,
+    /// with the message it gives where the variable is missing.
     /// </summary>
-    public static readonly string? BaseUrl =
-        Environment.GetEnvironmentVariable(
-            "FIFTYONE_CONTEXT_SELENIUM_BASEURL");
+    private readonly record struct Setting(string? Value, string? Missing);
+
+    private static Setting Read(Func<string> require)
+    {
+        try
+        {
+            return new Setting(require(), null);
+        }
+        catch (InvalidOperationException missing)
+        {
+            return new Setting(null, missing.Message);
+        }
+    }
+
+    private static readonly Setting Endpoint =
+        Read(() => TestConfig.Instance().DemoCloudEndpoint);
+
+    private static readonly Setting ResourceKey =
+        Read(() => TestConfig.Instance().DemoResourceKey);
 
     /// <summary>
-    /// The resource key the pages use.
-    /// <para>
-    /// It is not the throwaway one the cross browser context tests use.
-    /// Creating an identifier for a standard or personalized answer needs
-    /// a licence carrying the CloudV5FODiD product, which
-    /// <c>DidOnPremiseEngine.TryResolveLicenseId</c> scans the customer's
-    /// licence keys for, and refusing without one is deliberate. A
-    /// throwaway record cannot have that product, because the product
-    /// lives inside a real signed licence key rather than being a name a
-    /// record can claim, which is why the context tests ask for the
-    /// non-marketing usage. Everything the acceptance tests are for is a
-    /// marketing usage, so they use the 51Did entitled resource key that
-    /// is already committed in
-    /// <c>host/FiftyOne.Pipeline.Cloud.Tests.Common/testConfig.json</c>
-    /// as <c>fodid_resource_key</c> and that ci/test.ps1 already uses for
-    /// the identifier surface check. That customer's record also carries
-    /// a licence key, which is what the shared store needs.
-    /// </para>
-    /// <para>
-    /// It falls back to the context harness key so that a developer who
-    /// sets only the two context variables gets a run that says plainly
-    /// what it could not do rather than one that will not start.
-    /// </para>
+    /// The cloud, for example https://localhost:5443, with no trailing
+    /// slash, taken from 51DEGREES_CLOUD_ENDPOINT, the variable the demo is
+    /// started with. That endpoint names the api/v4 path, as every reader of
+    /// it expects, and the path is taken off here, because what the tests
+    /// ask the cloud directly they build from its root. An endpoint written
+    /// without the path is taken as the root.
     /// </summary>
-    public static readonly string? Resource =
-        FirstSet(
-            "FIFTYONE_BROWSER51DID_RESOURCE",
-            "FIFTYONE_CONTEXT_SELENIUM_RESOURCE");
-
-    private static string? FirstSet(params string[] names)
+    public static string? CloudUrl
     {
-        foreach (var name in names)
+        get
         {
-            var value = Environment.GetEnvironmentVariable(name);
-            if (string.IsNullOrEmpty(value) == false)
+            if (string.IsNullOrEmpty(Endpoint.Value))
             {
-                return value;
+                return null;
             }
+            var root = Endpoint.Value.TrimEnd('/');
+            const string ApiPath = "/api/v4";
+            return root.EndsWith(ApiPath, StringComparison.OrdinalIgnoreCase)
+                ? root.Substring(0, root.Length - ApiPath.Length)
+                : root;
         }
-        return null;
     }
 
     /// <summary>
+    /// The resource key the demo is started with, from
+    /// 51DEGREES_RESOURCE_KEY, the variable every language's demo reads.
+    /// <para>
+    /// The tests that create a 51Did for a standard or personalized answer
+    /// need a resource key whose products include CloudV5FODiD.
+    /// <see cref="RequireMarketingIdentifiers"/> asks the service first,
+    /// and where the key cannot create, those tests skip with the service's
+    /// own reason.
+    /// </para>
+    /// </summary>
+    public static string? Resource => ResourceKey.Value;
+
+    /// <summary>
     /// Whether the harness is configured at all. Unset means a developer
-    /// ran the project on its own, so the tests report inconclusive rather
-    /// than failing, exactly as the context tests do.
+    /// ran the category without saying where the cloud is or which key to
+    /// use, so the tests report inconclusive rather than failing, the way
+    /// the suite's other tests do when their configuration is missing.
     /// </summary>
     public static bool Configured =>
-        string.IsNullOrEmpty(BaseUrl) == false
+        string.IsNullOrEmpty(CloudUrl) == false
         && string.IsNullOrEmpty(Resource) == false;
+
+    /// <summary>Why the harness is not configured, for the skip.</summary>
+    public static string NotConfiguredReason =>
+        "The 51Did browser acceptance tests are not configured. "
+        + string.Join(
+            " ",
+            new[]
+            {
+                string.IsNullOrEmpty(CloudUrl) ? Endpoint.Missing : null,
+                string.IsNullOrEmpty(Resource) ? ResourceKey.Missing : null,
+            }.Where(missing => missing != null))
+        + " 51DEGREES_CLOUD_ENDPOINT names the cloud including its api/v4 "
+        + "path, and 51DEGREES_RESOURCE_KEY a resource key the cloud "
+        + "creates 51Dids for standard and personalized answers with. Both "
+        + "are handed to the demo unchanged. See Browser51Did/README.md.";
+
+    /// <summary>
+    /// The object name a page uses when it does not ask for another one,
+    /// which is what the client script and the preference platform both
+    /// fall back to.
+    /// </summary>
+    public const string DefaultObjectName = "fod";
+
+    /// <summary>
+    /// The object name the demo's <see cref="Routes.NamedObject"/> page
+    /// gives the preference platform in data-object-name.
+    /// </summary>
+    public const string NamedObject = "fiftyOneData";
 
     /// <summary>
     /// The first publisher site. It is a name and not localhost, because
@@ -126,8 +167,9 @@ public static class Harness
     /// Text that exists only in the client script's new user prompt block,
     /// being the message it logs once a page view has reached the server's
     /// maximum number of rounds. The guard below refuses to let any test
-    /// in this namespace run unless the script served by the endpoint under
-    /// test carries it, which is what makes a green run mean something.
+    /// in this namespace run unless the script served by the implementation
+    /// under test carries it, which is what makes a green run mean
+    /// something.
     /// <para>
     /// Settled by the template work package. If that wording changes, this
     /// is the one place to change it, and the report for that package
@@ -189,24 +231,12 @@ public static class Harness
 
     #endregion
 
-    /// <summary>
-    /// The client script for the throwaway resource key, as the page asks
-    /// for it.
-    /// </summary>
-    public static string ClientScriptUrl(string? objectName = null)
-    {
-        var url = $"{BaseUrl}/api/v4/{Resource}.js";
-        return objectName is null
-            ? url
-            : $"{url}?fod-js-object-name={objectName}";
-    }
-
     /// <summary>The preference platform's loader, as the page asks for it.</summary>
-    public static string PlatformLoaderUrl() => $"{BaseUrl}/api/v4/pmp";
+    public static string PlatformLoaderUrl() => $"{CloudUrl}/api/v4/pmp";
 
     /// <summary>
     /// Server to server, with certificate validation relaxed because the
-    /// container under test serves a certificate issued for another name.
+    /// cloud under test may serve a certificate issued for another name.
     /// The browsers are told to accept it for the same reason.
     /// </summary>
     private static readonly HttpClient Reader = new(
@@ -224,9 +254,9 @@ public static class Harness
     private static string? _guardFailure;
 
     /// <summary>
-    /// The guard. Fetches the client script from the endpoint the tests are
-    /// about to drive a browser at and refuses to go on unless the body
-    /// carries both of the markers below.
+    /// The guard. Fetches the client script the demo's pages load
+    /// before the tests drive a browser at them, and refuses to go on unless
+    /// the body carries both of the markers below.
     /// <para>
     /// Two markers, because they say different things. The iteration limit
     /// message says the template is the new one. It sits outside the user
@@ -238,11 +268,11 @@ public static class Harness
     /// off, which passes nothing it is meant to prove.
     /// </para>
     /// <para>
-    /// It runs once per class from the set up rather than inside a test, so
-    /// no test here can run against the old script and report green. A run
-    /// against a cloud built on the released 4.5.104 package fails every
+    /// It runs once per class from the set up rather than inside a test,
+    /// so no test here can run against the old script and report green. A
+    /// run against a cloud built on the released 4.5.104 package fails every
     /// test in the class with the line below, which says what was served
-    /// and what was wanted.
+    /// and what was wanted. The answer is kept, so it is asked once a run.
     /// </para>
     /// </summary>
     public static void RequireTheNewClientScript()
@@ -258,8 +288,9 @@ public static class Harness
                 Console.WriteLine(_guardEvidence);
                 return;
             }
+            var implementation = Demo.Chosen;
+            var url = implementation.ClientScriptFetchUrl();
             string body;
-            var url = ClientScriptUrl();
             try
             {
                 body = Reader.GetStringAsync(url).Result;
@@ -269,8 +300,9 @@ public static class Harness
                 _guardFailure =
                     "The client script could not be fetched from "
                     + $"{Redacted(url)}, "
-                    + "so there is no way to tell which template the "
-                    + $"container was built from. {error.Message}";
+                    + "so there is no way to tell which template "
+                    + $"{implementation.Name} was built from. "
+                    + Redacted(error.Message);
                 Assert.Fail(_guardFailure);
                 return;
             }
@@ -282,14 +314,12 @@ public static class Harness
                 {
                     _guardFailure =
                         "The client script served by "
-                        + $"{Redacted(url)} does not carry "
-                        + $"'{marker}', which is what says {says}. Every "
-                        + "test in this class would be proving the wrong "
-                        + "thing, so none of them runs. Move the "
-                        + "FiftyOne.Pipeline.JavaScriptBuilder pin to the "
-                        + "package built from the new template and build "
-                        + $"the image again. The script was {body.Length} "
-                        + "bytes.";
+                        + $"{implementation.Name} at {Redacted(url)} does "
+                        + $"not carry '{marker}', which is what says "
+                        + $"{says}. Every test would be proving the wrong "
+                        + "thing, so none of them runs. "
+                        + Remedy(implementation)
+                        + $" The script was {body.Length} bytes.";
                     Assert.Fail(_guardFailure);
                     return;
                 }
@@ -297,12 +327,23 @@ public static class Harness
                     $"'{marker}' at {found}: {Around(body, found)}");
             }
             _guardEvidence =
-                "Client script guard passed. "
+                $"Client script guard passed for {implementation.Name}. "
                 + $"{Redacted(url)} served {body.Length} "
                 + "bytes carrying " + string.Join(" and ", evidence);
             Console.WriteLine(_guardEvidence);
         }
     }
+
+    /// <summary>What to do about a client script without the markers.</summary>
+    private static string Remedy(Demo demo)
+        => demo.Mode == DemoMode.Cloud
+            ? "Move the cloud's FiftyOne.Pipeline.JavaScriptBuilder pin to "
+                + "the package built from the new template and build the cloud "
+                + "again."
+            : $"Build {demo.Name} against a JavaScript builder carrying the "
+                + "new template, with a 51Did element in its pipeline, which "
+                + "is what makes the user prompt block render, and start it "
+                + "again.";
 
     /// <summary>
     /// What the served client script has to carry, and what each one
@@ -355,10 +396,12 @@ public static class Harness
     /// identifier for a marketing answer, which is what standard and
     /// personalized both are.
     /// <para>
-    /// The service is asked rather than a flag being read, so the reason
-    /// the test reports is the service's own words rather than a guess,
-    /// and a key that stops carrying the product later says so instead of
-    /// failing somewhere in a browser.
+    /// The cloud is asked rather than a flag being read, so the reason the
+    /// test reports is the service's own words rather than a guess, and a
+    /// key that stops carrying the product later says so instead of
+    /// failing somewhere in a browser. It is the cloud that is asked
+    /// whichever implementation is under test, because an example creates
+    /// nothing itself and passes the request on to the cloud.
     /// </para>
     /// </summary>
     public static void RequireMarketingIdentifiers()
@@ -378,21 +421,19 @@ public static class Harness
                 + "marketing answer, which is what standard and "
                 + "personalized both are, so nothing here would be "
                 + "testing the thing it is for. The service said: "
-                + _marketingRefusal
-                + " Point FIFTYONE_BROWSER51DID_RESOURCE at a resource key "
-                + "whose customer holds a licence carrying the CloudV5FODiD "
-                + "product, such as fodid_resource_key in "
-                + "host/FiftyOne.Pipeline.Cloud.Tests.Common/testConfig.json.");
+                + Redacted(_marketingRefusal)
+                + " Point 51DEGREES_RESOURCE_KEY at a resource key "
+                + "the service creates standard identifiers for.");
         }
     }
 
     /// <summary>
-    /// Asks the service to make a standard identifier and reports why it
+    /// Asks the cloud to make a standard identifier and reports why it
     /// would not, or null where it did.
     /// </summary>
     private static string? MarketingRefusal()
     {
-        var url = $"{BaseUrl}/api/v4/json?resource={Resource}"
+        var url = $"{CloudUrl}/api/v4/json?resource={Resource}"
             + "&id.usage=standard&values=FODiD.IdProbGlobal";
         string body;
         try
@@ -455,7 +496,7 @@ public static class Harness
                 "The cloud will not hold a choice for this resource key, "
                 + "so a choice cannot be carried between sites and nothing "
                 + "here would be testing that it is. The service said: "
-                + _sharedStoreRefusal);
+                + Redacted(_sharedStoreRefusal));
         }
     }
 
@@ -470,7 +511,7 @@ public static class Harness
         try
         {
             using var request = new HttpRequestMessage(
-                HttpMethod.Post, $"{BaseUrl}/api/v4/pmp/pref")
+                HttpMethod.Post, $"{CloudUrl}/api/v4/pmp/pref")
             {
                 Content = new FormUrlEncodedContent(
                     new Dictionary<string, string>
@@ -496,6 +537,42 @@ public static class Harness
     }
 
     /// <summary>
+    /// Refuses to go on where a browser would not keep the shared choice's
+    /// cookie at all, so a choice could not be carried between sites
+    /// whatever the code did.
+    /// <para>
+    /// The cloud sets that cookie Secure and SameSite=None, and a browser
+    /// keeps such a cookie only from a secure origin. HTTPS is one, and so
+    /// is localhost, which browsers treat as secure whatever the scheme.
+    /// Measured on 15 September 2026 against a service on
+    /// http://localhost:5050, both browsers kept the cookie and both tests
+    /// that call this passed. So what is refused is a cloud reached over
+    /// plain HTTP by any other name, and the suite's usual target,
+    /// http://localhost:8080, is not refused. Other loopback names such as
+    /// 127.0.0.1 were not measured, so they are refused rather than
+    /// assumed.
+    /// </para>
+    /// </summary>
+    public static void RequireSecureCookies()
+    {
+        var cloud = new Uri(CloudUrl!);
+        if (cloud.Scheme == Uri.UriSchemeHttps
+            || string.Equals(
+                cloud.Host, "localhost", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+        Assert.Inconclusive(
+            $"The cloud is at {Redacted(CloudUrl!)}, which is plain HTTP "
+            + "and not localhost, so a browser will not keep the shared "
+            + "choice's cookie, which the cloud sets Secure and "
+            + "SameSite=None. A choice cannot be carried between sites "
+            + "there, so nothing here would be testing that it is. Point "
+            + "51DEGREES_CLOUD_ENDPOINT at the cloud's HTTPS listener to run "
+            + "this.");
+    }
+
+    /// <summary>
     /// The group of sites a choice is shared across in these tests. The
     /// name is what the cookie holding the choice is derived from, so the
     /// pages and the check above have to use the same one.
@@ -506,15 +583,16 @@ public static class Harness
         => value.Length <= 300 ? value : value.Substring(0, 300) + "...";
 
     /// <summary>
-    /// A URL with the resource key taken out of it, for anything a test
+    /// Text with the resource key taken out of it, for anything a test
     /// prints. A failure message and the guard's evidence both end up in a
-    /// run log and in a pull request body, and a resource key is a
-    /// credential that must never be written down anywhere.
+    /// run log and in a pull request body, this suite runs in public
+    /// repositories' builds, and a resource key is a credential that must
+    /// never be written down anywhere.
     /// </summary>
-    public static string Redacted(string url)
+    public static string Redacted(string text)
         => string.IsNullOrEmpty(Resource)
-            ? url
-            : url.Replace(Resource, "<resource key>", StringComparison.Ordinal);
+            ? text
+            : text.Replace(Resource, "<resource key>", StringComparison.Ordinal);
 
     /// <summary>One line of the script either side of the match.</summary>
     private static string Around(string body, int at)
@@ -558,7 +636,7 @@ public static class Harness
                     preference.Key, preference.Value);
             }
         }
-        return new ChromeDriver(options);
+        return Start(options);
     }
 
     /// <summary>
@@ -598,12 +676,35 @@ public static class Harness
                             preference.Key,
                             Convert.ToString(
                                 preference.Value,
-                                CultureInfo.InvariantCulture));
+                                CultureInfo.InvariantCulture) ?? string.Empty);
                         break;
                 }
             }
         }
-        return new FirefoxDriver(options);
+        return Start(options);
+    }
+
+    /// <summary>
+    /// A local browser, or one on the Selenium grid SELENIUM_URL names,
+    /// which is how every browser in this suite is started. A grid has to
+    /// share this machine's network, because the site names resolve to
+    /// 127.0.0.1 inside the browser.
+    /// </summary>
+    private static IWebDriver Start(DriverOptions options)
+    {
+        if (ExternalSeleniumHelper.IsExternalSelenium(out var seleniumUrl))
+        {
+            ExternalSeleniumHelper.AddExternalSeleniumArguments(options);
+            return new RemoteWebDriver(new Uri(seleniumUrl), options);
+        }
+        return options switch
+        {
+            ChromeOptions chrome => new ChromeDriver(chrome),
+            FirefoxOptions firefox => new FirefoxDriver(firefox),
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(options),
+                $"{options.GetType().Name} is not a browser these tests use."),
+        };
     }
 
     /// <summary>
@@ -623,9 +724,9 @@ public static class Harness
             }
             Thread.Sleep(100);
         }
-        Assert.Fail(
+        Assert.Fail(Redacted(
             $"Waited {Patience.TotalSeconds:0} seconds and "
-            + $"{whatWasWaitedFor} never happened.");
+            + $"{whatWasWaitedFor} never happened."));
     }
 
     #endregion

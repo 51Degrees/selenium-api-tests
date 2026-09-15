@@ -1,20 +1,102 @@
 #nullable enable
 
 using System;
-using System.Collections.Generic;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using FiftyOne.Did.Model;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Browser51Did;
 
 /// <summary>
+/// A test method whose every result has the resource key taken out of it
+/// before the runner sees it, being the failure message, the stack trace
+/// and everything the test wrote.
+/// <para>
+/// This suite is public and its CI log is public, and a failure message
+/// here routinely quotes what a page did, which includes the client
+/// script's address, and that address names the resource key. Redacting
+/// each message by hand leaves the next message written to leak it, so it
+/// is done once, here, for every result. <see cref="Browser51DidTestBase"/>
+/// refuses to run a test that is not marked with this attribute.
+/// </para>
+/// </summary>
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+public sealed class Browser51DidTestAttribute : TestMethodAttribute
+{
+    /// <summary>Passes the declaring file and line on, as MSTest needs.</summary>
+    public Browser51DidTestAttribute(
+        [CallerFilePath] string callerFilePath = "",
+        [CallerLineNumber] int callerLineNumber = -1)
+        : base(callerFilePath, callerLineNumber)
+    {
+    }
+
+    /// <inheritdoc/>
+    public override async Task<TestResult[]> ExecuteAsync(
+        ITestMethod testMethod)
+    {
+        var results = await base.ExecuteAsync(testMethod)
+            .ConfigureAwait(false);
+        foreach (var result in results)
+        {
+            Redact(result);
+        }
+        return results;
+    }
+
+    private static void Redact(TestResult result)
+    {
+        result.LogOutput = RedactedOrNull(result.LogOutput);
+        result.LogError = RedactedOrNull(result.LogError);
+        result.DebugTrace = RedactedOrNull(result.DebugTrace);
+        result.TestContextMessages = RedactedOrNull(result.TestContextMessages);
+        var failure = result.TestFailureException;
+        if (failure is null || string.IsNullOrEmpty(Harness.Resource))
+        {
+            return;
+        }
+        var whole = failure.ToString();
+        if (whole.Contains(Harness.Resource, StringComparison.Ordinal) == false)
+        {
+            return;
+        }
+        // The exception cannot be edited, so a new one carries the redacted
+        // text. Its own stack trace would point here, so the original one is
+        // kept in the message, where the line that failed can still be read.
+        var text = Harness.Redacted(
+            $"{InnermostMessage(failure)}\nWhere it failed, kept because "
+            + $"the message was redacted:\n{whole}");
+        result.TestFailureException =
+            result.Outcome == UnitTestOutcome.Inconclusive
+                ? new AssertInconclusiveException(text)
+                : new AssertFailedException(text);
+    }
+
+    private static string InnermostMessage(Exception failure)
+    {
+        var inner = failure;
+        while (inner.InnerException is not null)
+        {
+            inner = inner.InnerException;
+        }
+        return inner.Message;
+    }
+
+    private static string? RedactedOrNull(string? text)
+        => text is null ? null : Harness.Redacted(text);
+}
+
+/// <summary>
 /// What every browser acceptance test class shares, being the guard, the
-/// skip when the harness is not configured, and the reading of a 51Did.
+/// skip when the harness is not configured, the demo, and the reading of a
+/// 51Did.
 /// <para>
 /// The guard runs once for each class from the set up, not from inside a
-/// test, so that a container built against the old client script fails
-/// every test in the class rather than letting one of them pass for the
-/// wrong reason.
+/// test, so that a cloud built against the old client script fails every
+/// test in the class rather than letting one of them pass for the wrong
+/// reason.
 /// </para>
 /// </summary>
 public abstract class Browser51DidTestBase
@@ -29,9 +111,12 @@ public abstract class Browser51DidTestBase
     /// <summary>The second browser, for the same reason.</summary>
     protected const string Firefox = "Firefox";
 
+    /// <summary>Set by MSTest, and used to find the running test.</summary>
+    public TestContext TestContext { get; set; } = null!;
+
     /// <summary>
-    /// Fails every test in the class unless the client script served by
-    /// the endpoint under test is the new one. See
+    /// Fails every test in the class unless the client script the demo's
+    /// pages load is the new one. See
     /// <see cref="Harness.RequireTheNewClientScript"/>.
     /// </summary>
     [ClassInitialize(InheritanceBehavior.BeforeEachDerivedClass)]
@@ -49,29 +134,29 @@ public abstract class Browser51DidTestBase
     [TestInitialize]
     public void RequireHarness()
     {
+        var method = GetType().GetMethod(TestContext.TestName ?? string.Empty);
+        if (method?.GetCustomAttribute<Browser51DidTestAttribute>() is null)
+        {
+            Assert.Fail(
+                $"{TestContext.TestName} is not marked [Browser51DidTest], "
+                + "so a failure in it could print the resource key into a "
+                + "public log. Mark it [Browser51DidTest] instead of "
+                + "[TestMethod].");
+        }
         if (Harness.Configured == false)
         {
-            Assert.Inconclusive(
-                "The browser acceptance harness is not configured. Set "
-                + "FIFTYONE_CONTEXT_SELENIUM_BASEURL and "
-                + "FIFTYONE_CONTEXT_SELENIUM_RESOURCE, or run ci/test.ps1 "
-                + "with -Browser51Did $true, which starts the container and "
-                + "sets them. See README.md.");
+            Assert.Inconclusive(Harness.NotConfiguredReason);
         }
+        Demo.Chosen.EnsureStarted();
     }
 
     /// <summary>
-    /// A browser looking at a website served for the length of this test.
+    /// A browser, which will load the demo's pages as the two publisher
+    /// sites.
     /// </summary>
-    protected static Visitor NewVisitor(
-        string browser,
-        PageServer server,
-        IReadOnlyDictionary<string, object>? preferences = null)
+    protected static Visitor NewVisitor(string browser)
         => new(
-            browser == Firefox
-                ? Harness.NewFirefox(preferences)
-                : Harness.NewChrome(preferences),
-            server,
+            browser == Firefox ? Harness.NewFirefox() : Harness.NewChrome(),
             browser);
 
     /// <summary>
@@ -85,9 +170,8 @@ public abstract class Browser51DidTestBase
     /// <summary>
     /// Refuses to go on where this resource key cannot create an
     /// identifier for a standard or personalized answer, which needs a
-    /// licence carrying the CloudV5FODiD product. See
-    /// <see cref="Harness.Resource"/> for why a throwaway record cannot
-    /// have one.
+    /// resource key whose products include CloudV5FODiD. The service is
+    /// asked, and the skip carries its own reason.
     /// </summary>
     protected static void RequireMarketingIdentifiers()
         => Harness.RequireMarketingIdentifiers();

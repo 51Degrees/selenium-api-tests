@@ -28,7 +28,7 @@ public class PlatformAcceptanceTests : Browser51DidTestBase
     /// The second card is up before any of that finished, because nothing
     /// waits between the two cards.
     /// </summary>
-    [TestMethod]
+    [Browser51DidTest]
     public void CommonPath_PlatformThenScript_Chrome()
         => CommonPath(Chrome, platformFirst: true);
 
@@ -37,7 +37,7 @@ public class PlatformAcceptanceTests : Browser51DidTestBase
     /// because anything the shared choice travels on behaves differently
     /// between them.
     /// </summary>
-    [TestMethod]
+    [Browser51DidTest]
     public void CommonPath_PlatformThenScript_Firefox()
         => CommonPath(Firefox, platformFirst: true);
 
@@ -48,24 +48,17 @@ public class PlatformAcceptanceTests : Browser51DidTestBase
     /// design that only worked one way round would pass the test above and
     /// fail on half the customers' pages.
     /// </summary>
-    [TestMethod]
+    [Browser51DidTest]
     public void CommonPath_ScriptThenPlatform_Chrome()
         => CommonPath(Chrome, platformFirst: false);
 
     private void CommonPath(string browser, bool platformFirst)
     {
-        using var server = new PageServer();
         RequireMarketingIdentifiers();
-        var settings = new Pages.PlatformSettings();
-        var platform = Pages.PlatformTag(settings);
-        var script = Pages.ClientScriptTag();
-        server.Put("/", Pages.Page(
-            "Common path",
-            platformFirst ? platform : script,
-            platformFirst ? script : platform));
-
-        using var visitor = NewVisitor(browser, server);
-        visitor.Go(Harness.SiteA, "/");
+        using var visitor = NewVisitor(browser);
+        visitor.Go(
+            Harness.SiteA,
+            platformFirst ? Routes.Common : Routes.CommonScriptFirst);
 
         // The first round. Nobody has been asked yet, so nothing may be
         // created, which is the rule the whole programme exists for.
@@ -90,39 +83,35 @@ public class PlatformAcceptanceTests : Browser51DidTestBase
         // The visitor answers.
         visitor.WaitForPlatform();
         visitor.WaitForCard("preferences");
+        // Records when each round finishes and when the share card arrives,
+        // for the failure message below. It changes nothing on the page.
+        visitor.StartTimeline();
         var roundsBefore = visitor.ClientRequests().Count;
-        // How many rounds had already finished, which is what the share
-        // card must appear before any more of. The page may well have
-        // finished more than one by now, because the snippets it was asked
-        // to run produce a round of their own, so this is read rather than
-        // assumed to be one.
-        var doneBefore = visitor.ClientRequests().Count(r => r.Done);
         visitor.Press("standard");
 
-        // The second card is up before the refresh has finished. Both
-        // readings come from one call, so there is no gap between them in
-        // which the answer could change.
-        (bool CardVisible, int RoundsDone) atShare = (false, -1);
+        // The second card is up before the refresh has finished. How many
+        // rounds had finished is counted inside the page, once at the moment
+        // of the press and once at the first frame the card is visible, so
+        // no round can finish unseen in the time it takes to ask the page
+        // from here. The page may well have finished more than one round
+        // before the press, because the snippets it was asked to run produce
+        // a round of their own, so the count at the press is read rather
+        // than assumed to be one.
         Harness.Until(
-            () =>
-            {
-                var seen = visitor.Observe("share");
-                if (seen.CardVisible && atShare.RoundsDone < 0)
-                {
-                    atShare = seen;
-                }
-                return atShare.RoundsDone >= 0;
-            },
+            () => visitor.RoundsFinishedAround().AtShareVisible >= 0,
             $"the share card appeared in {browser}. The console said: "
-            + $"{string.Join(" | ", visitor.Console())}");
+            + $"{string.Join(" | ", visitor.Console())}. What the page "
+            + $"recorded, frame by frame, was: {visitor.Timeline()}");
+        var (doneAtPress, doneAtShare) = visitor.RoundsFinishedAround();
         Assert.AreEqual(
-            doneBefore,
-            atShare.RoundsDone,
+            doneAtPress,
+            doneAtShare,
             "the share card must follow the first card at once, with "
-            + "nothing waiting on the refresh. When it appeared the client "
-            + $"script had finished {atShare.RoundsDone} rounds rather than "
-            + $"the {doneBefore} it had finished at the click, so something "
-            + "waited.");
+            + "nothing waiting on the refresh. When it first became visible "
+            + $"the client script had finished {doneAtShare} rounds rather "
+            + $"than the {doneAtPress} it had finished at the press, so "
+            + "something waited. What the page recorded, frame by frame, "
+            + $"was: {visitor.Timeline()}");
 
         // Exactly one further request, carrying the answer once and every
         // snippet result the page had worked out.
@@ -204,7 +193,7 @@ public class PlatformAcceptanceTests : Browser51DidTestBase
     /// identifier from the answer with the signal source recorded as
     /// direct.
     /// </summary>
-    [TestMethod]
+    [Browser51DidTest]
     public void SharedChoice_SecondSite_NoDialogAndDirectFlag_Chrome()
         => SharedChoice(Chrome);
 
@@ -213,25 +202,19 @@ public class PlatformAcceptanceTests : Browser51DidTestBase
     /// third party cookie and that is the thing the two browsers treat
     /// differently.
     /// </summary>
-    [TestMethod]
+    [Browser51DidTest]
     public void SharedChoice_SecondSite_NoDialogAndDirectFlag_Firefox()
         => SharedChoice(Firefox);
 
     private void SharedChoice(string browser)
     {
-        using var server = new PageServer();
+        Harness.RequireSecureCookies();
         RequireMarketingIdentifiers();
         RequireSharing();
-        var page = Pages.Page(
-            "Shared choice",
-            Pages.PlatformTag(new Pages.PlatformSettings()),
-            Pages.ClientScriptTag());
-        server.Put("/", page);
-
-        using var visitor = NewVisitor(browser, server);
+        using var visitor = NewVisitor(browser);
 
         // Site A, where the visitor answers and agrees to share.
-        visitor.Go(Harness.SiteA, "/");
+        visitor.Go(Harness.SiteA, Routes.Common);
         visitor.WaitForCard("preferences");
         visitor.Press("standard");
         visitor.WaitForCard("share");
@@ -243,7 +226,7 @@ public class PlatformAcceptanceTests : Browser51DidTestBase
             + $"console said: {string.Join(" | ", visitor.Console())}");
 
         // Site B, a first visit, in the same browser.
-        visitor.Go(Harness.SiteB, "/");
+        visitor.Go(Harness.SiteB, Routes.Common);
         visitor.WaitForPlatform();
         visitor.WaitForClientRounds(1);
 
@@ -312,19 +295,12 @@ public class PlatformAcceptanceTests : Browser51DidTestBase
     /// different identifier comes back, and page code that registered a
     /// change handler is told.
     /// </summary>
-    [TestMethod]
+    [Browser51DidTest]
     public void ChangeOfAnswer_SamePage_NewIdentifierAndOnChange()
     {
-        using var server = new PageServer();
         RequireMarketingIdentifiers();
-        server.Put("/", Pages.Page(
-            "Change of answer",
-            Pages.PlatformTag(new Pages.PlatformSettings()),
-            Pages.ClientScriptTag(),
-            Pages.ChangeWatcher(Pages.DefaultObjectName)));
-
-        using var visitor = NewVisitor(Chrome, server);
-        visitor.Go(Harness.SiteA, "/");
+        using var visitor = NewVisitor(Chrome);
+        visitor.Go(Harness.SiteA, Routes.Change);
         visitor.WaitForCard("preferences");
         visitor.Press("standard");
         Harness.Until(
@@ -402,21 +378,12 @@ public class PlatformAcceptanceTests : Browser51DidTestBase
     /// here would be asserting that the cache does not work.
     /// </para>
     /// </summary>
-    [TestMethod]
+    [Browser51DidTest]
     public void ChangeOfAnswer_AcrossPages_TheSecondPageCarriesTheNewAnswer()
     {
-        using var server = new PageServer();
         RequireMarketingIdentifiers();
-        var page = Pages.Page(
-            "Two pages",
-            Pages.PlatformTag(new Pages.PlatformSettings()),
-            Pages.ClientScriptTag(),
-            Pages.ChangeWatcher(Pages.DefaultObjectName));
-        server.Put("/one", page);
-        server.Put("/two", page);
-
-        using var visitor = NewVisitor(Chrome, server);
-        visitor.Go(Harness.SiteA, "/one");
+        using var visitor = NewVisitor(Chrome);
+        visitor.Go(Harness.SiteA, Routes.TwoOne);
         visitor.WaitForCard("preferences");
         visitor.Press("standard");
         Harness.Until(
@@ -444,7 +411,7 @@ public class PlatformAcceptanceTests : Browser51DidTestBase
             "the change was to personalized.");
 
         // The second page, in the same tab.
-        visitor.Go(Harness.SiteA, "/two");
+        visitor.Go(Harness.SiteA, Routes.TwoTwo);
         Harness.Until(
             () => visitor.Identifier() != "",
             "the second page settled on an identifier. The console said: "
@@ -477,17 +444,11 @@ public class PlatformAcceptanceTests : Browser51DidTestBase
     /// any other, so it creates an identifier with the direct flag, and
     /// there is nothing to share, so no second card is offered.
     /// </summary>
-    [TestMethod]
+    [Browser51DidTest]
     public void AlternativeAnswer_CreatesNonMarketingAndFiresTheAction()
     {
-        using var server = new PageServer();
-        server.Put("/", Pages.Page(
-            "Alternative",
-            Pages.PlatformTag(new Pages.PlatformSettings()),
-            Pages.ClientScriptTag()));
-
-        using var visitor = NewVisitor(Chrome, server);
-        visitor.Go(Harness.SiteA, "/");
+        using var visitor = NewVisitor(Chrome);
+        visitor.Go(Harness.SiteA, Routes.Common);
         visitor.WaitForCard("preferences");
         visitor.Press("alternative");
 

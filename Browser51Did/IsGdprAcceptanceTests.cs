@@ -32,17 +32,11 @@ public class IsGdprAcceptanceTests : Browser51DidTestBase
     /// surface reports it, and a false value does not stop the visitor
     /// being asked.
     /// </summary>
-    [TestMethod]
+    [Browser51DidTest]
     public void IsGdpr_ReadFromTheClientScript_SetsGdprApplies()
     {
-        using var server = new PageServer();
-        server.Put("/", Pages.Page(
-            "Is the regulation in force",
-            Pages.PlatformTag(new Pages.PlatformSettings()),
-            Pages.ClientScriptTag()));
-
-        using var visitor = NewVisitor(Chrome, server);
-        visitor.Go(Harness.SiteA, "/");
+        using var visitor = NewVisitor(Chrome);
+        visitor.Go(Harness.SiteA, Routes.Common);
         visitor.WaitForPlatform();
         visitor.WaitForClientRounds(1);
 
@@ -85,17 +79,11 @@ public class IsGdprAcceptanceTests : Browser51DidTestBase
     /// With no value to read, the platform says so once and carries on as
     /// though the regulation applies, which is the safe way round.
     /// </summary>
-    [TestMethod]
+    [Browser51DidTest]
     public void IsGdprAbsent_PlatformWarnsAndAssumesItApplies()
     {
-        using var server = new PageServer();
-        server.Put("/", Pages.Page(
-            "No isgdpr",
-            Pages.PlatformTag(new Pages.PlatformSettings()),
-            Pages.ClientScriptTag()));
-
-        using var visitor = NewVisitor(Chrome, server);
-        visitor.Go(Harness.SiteA, "/");
+        using var visitor = NewVisitor(Chrome);
+        visitor.Go(Harness.SiteA, Routes.Common);
         visitor.WaitForPlatform();
         visitor.WaitForClientRounds(1);
 

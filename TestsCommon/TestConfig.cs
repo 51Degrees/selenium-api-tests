@@ -14,7 +14,15 @@ namespace FiftyOne.Pipeline.Cloud.Tests.Common
         public string PaidResourceKey => Require(_paidResourceKey);
         // Enterprise V4 license, passed to the JS endpoint to unlock paid properties.
         public string EnterpriseV4License => Require(_enterpriseV4License);
+        // Resource key a demo is started with. The same name is read by every
+        // language's demo, so the suite hands it over unchanged.
+        public string DemoResourceKey => Require(DemoResourceKeyVariable);
+        // Cloud endpoint a demo is started with, including the api/v4 path.
+        // Read by every language's demo under the same name.
+        public string DemoCloudEndpoint => Require(DemoCloudEndpointVariable);
 
+        public const string DemoResourceKeyVariable = "51DEGREES_RESOURCE_KEY";
+        public const string DemoCloudEndpointVariable = "51DEGREES_CLOUD_ENDPOINT";
         private const string _rootUrl = "CLOUD_ROOT_URL";
         private const string _freeResourceKey = "FREE_RESOURCE_KEY";
         private const string _paidResourceKey = "PAID_RESOURCE_KEY";

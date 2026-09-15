@@ -28,17 +28,12 @@ public class PlatformAddsClientScriptTests : Browser51DidTestBase
     /// The whole of it in one page view, from the script arriving to the
     /// identifier coming back.
     /// </summary>
-    [TestMethod]
+    [Browser51DidTest]
     public void NoClientScriptTag_PlatformAddsItAndTheAnswerStillCreates()
     {
-        using var server = new PageServer();
         RequireMarketingIdentifiers();
-        server.Put("/", Pages.Page(
-            "Platform with no client script",
-            Pages.PlatformTag(new Pages.PlatformSettings())));
-
-        using var visitor = NewVisitor(Chrome, server);
-        visitor.Go(Harness.SiteA, "/");
+        using var visitor = NewVisitor(Chrome);
+        visitor.Go(Harness.SiteA, Routes.PlatformOnly);
         visitor.WaitForPlatform();
 
         // The script the platform added, named by where it came from and
@@ -49,7 +44,7 @@ public class PlatformAddsClientScriptTests : Browser51DidTestBase
             + string.Join(" | ", visitor.Console()));
         var added = AddedClientScript(visitor)!;
         Assert.IsTrue(
-            added.StartsWith(Harness.BaseUrl!, StringComparison.OrdinalIgnoreCase),
+            added.StartsWith(Harness.CloudUrl!, StringComparison.OrdinalIgnoreCase),
             "the script must come from the cloud that served the platform, "
             + "because that is the only cloud the platform knows about. It "
             + $"came from {added}.");
@@ -143,20 +138,12 @@ public class PlatformAddsClientScriptTests : Browser51DidTestBase
     /// and the platform then asks for the script under that name, finds it
     /// under that name, and says which name it used.
     /// </summary>
-    [TestMethod]
+    [Browser51DidTest]
     public void ObjectNameAttribute_NamesTheObjectEverywhere()
     {
-        const string objectName = "fiftyOneData";
-        using var server = new PageServer();
-        server.Put("/", Pages.Page(
-            "Platform with a named object",
-            Pages.PlatformTag(new Pages.PlatformSettings
-            {
-                ObjectName = objectName,
-            })));
-
-        using var visitor = NewVisitor(Chrome, server);
-        visitor.Go(Harness.SiteA, "/");
+        const string objectName = Harness.NamedObject;
+        using var visitor = NewVisitor(Chrome);
+        visitor.Go(Harness.SiteA, Routes.NamedObject);
         visitor.WaitForPlatform();
 
         Harness.Until(
@@ -175,7 +162,7 @@ public class PlatformAddsClientScriptTests : Browser51DidTestBase
             visitor.HasTheNewClientScript(objectName),
             $"the object under '{objectName}' must be the client script's.");
         Assert.IsFalse(
-            visitor.HasClientObject(Pages.DefaultObjectName),
+            visitor.HasClientObject(Harness.DefaultObjectName),
             "nothing may be put under the default name when the publisher "
             + "asked for another one, because two objects would be two "
             + "instances and the page would warn about the second.");
@@ -193,20 +180,15 @@ public class PlatformAddsClientScriptTests : Browser51DidTestBase
     /// The attribute left off uses the default name, which is what the
     /// documentation says and what an existing page relies on.
     /// </summary>
-    [TestMethod]
+    [Browser51DidTest]
     public void ObjectNameAttributeAbsent_UsesTheDefaultName()
     {
-        using var server = new PageServer();
-        server.Put("/", Pages.Page(
-            "Platform with no object name",
-            Pages.PlatformTag(new Pages.PlatformSettings())));
-
-        using var visitor = NewVisitor(Chrome, server);
-        visitor.Go(Harness.SiteA, "/");
+        using var visitor = NewVisitor(Chrome);
+        visitor.Go(Harness.SiteA, Routes.PlatformOnly);
         visitor.WaitForPlatform();
-        visitor.WaitForClientObject(Pages.DefaultObjectName);
+        visitor.WaitForClientObject(Harness.DefaultObjectName);
         Assert.IsTrue(
-            visitor.HasTheNewClientScript(Pages.DefaultObjectName),
+            visitor.HasTheNewClientScript(Harness.DefaultObjectName),
             "with no name asked for, the object is the default one.");
     }
 

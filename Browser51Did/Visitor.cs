@@ -60,10 +60,12 @@ public sealed class RecordedRequest
 }
 
 /// <summary>
-/// One visitor, being a browser and the publisher's website it is looking
-/// at. Everything a test asserts on is read back through here, so an
-/// assertion reads as a sentence about the page rather than as a lump of
-/// JavaScript.
+/// One visitor, being a browser looking at the demo's pages as the
+/// publisher's sites. Everything a test asserts on is read back through
+/// here, so an assertion reads as a sentence about the page rather than as a
+/// lump of JavaScript. What it reads was put on the page by the demo, so a
+/// demo in another language that serves the same pages passes the same
+/// reads.
 /// </summary>
 public sealed class Visitor : IDisposable
 {
@@ -105,25 +107,25 @@ public sealed class Visitor : IDisposable
 
     public IWebDriver Driver { get; }
 
-    public PageServer Server { get; }
-
     /// <summary>The browser's name, for a failure message.</summary>
     public string BrowserName { get; }
 
-    public Visitor(IWebDriver driver, PageServer server, string browserName)
+    public Visitor(IWebDriver driver, string browserName)
     {
         Driver = driver;
-        Server = server;
         BrowserName = browserName;
     }
 
-    /// <summary>Loads a page and waits for the document to settle.</summary>
-    public void Go(string site, string path)
+    /// <summary>
+    /// Loads one of the demo's pages as one of the publisher sites, and
+    /// waits for the document to settle.
+    /// </summary>
+    public void Go(string site, string route)
     {
-        Driver.Navigate().GoToUrl(Server.UrlFor(site, path));
+        Driver.Navigate().GoToUrl(Demo.Chosen.PageUrl(site, route));
         Harness.Until(
             () => Script<string>("return document.readyState;") == "complete",
-            $"the page at {site}{path} finished loading");
+            $"the {route} page at {site} finished loading");
     }
 
     public T? Script<T>(string body, params object[] arguments)
@@ -156,12 +158,14 @@ public sealed class Visitor : IDisposable
 
     /// <summary>
     /// The client script's own requests, being the ones to the endpoint it
-    /// posts its evidence to.
+    /// posts its evidence to, which the demo's mode names rather than this
+    /// assuming the cloud's.
     /// </summary>
     public IReadOnlyList<RecordedRequest> ClientRequests()
         => Requests()
             .Where(r => r.Url.Contains(
-                "/api/v4/json", StringComparison.OrdinalIgnoreCase))
+                Demo.Chosen.JsonEndpointPath,
+                StringComparison.OrdinalIgnoreCase))
             .ToList();
 
     /// <summary>
@@ -243,7 +247,7 @@ public sealed class Visitor : IDisposable
     #region The client script's object
 
     /// <summary>Whether the client script's object exists on the page.</summary>
-    public bool HasClientObject(string objectName = Pages.DefaultObjectName)
+    public bool HasClientObject(string objectName = Harness.DefaultObjectName)
         => Script<bool>(
             $"return typeof window['{objectName}'] === 'object'"
             + $" && window['{objectName}'] !== null;");
@@ -254,7 +258,7 @@ public sealed class Visitor : IDisposable
     /// answer has reached the cloud, so an empty string is the normal
     /// state of a first request that carried no answer.
     /// </summary>
-    public string Identifier(string objectName = Pages.DefaultObjectName)
+    public string Identifier(string objectName = Harness.DefaultObjectName)
         => Script<string>(
             $@"var o = window['{objectName}'];
                return (o && o.fodid && o.fodid.idprobglobal) || '';") ?? "";
@@ -266,7 +270,7 @@ public sealed class Visitor : IDisposable
     /// on what the endpoint served the test host.
     /// </summary>
     public bool HasTheNewClientScript(
-        string objectName = Pages.DefaultObjectName)
+        string objectName = Harness.DefaultObjectName)
         => Script<bool>(
             $"var o = window['{objectName}'];"
             + " return !!(o && typeof o.refresh === 'function');");
@@ -276,7 +280,7 @@ public sealed class Visitor : IDisposable
     /// page sees it. Empty where the property has no value.
     /// </summary>
     public string ThirdPartyCookies(
-        string objectName = Pages.DefaultObjectName)
+        string objectName = Harness.DefaultObjectName)
         => Script<string>(
             $@"var o = window['{objectName}'];
                var d = o && o.device;
@@ -291,7 +295,7 @@ public sealed class Visitor : IDisposable
     /// properties the resource key happens to carry.
     /// </summary>
     public IReadOnlyList<string> SnippetValueNames(
-        string objectName = Pages.DefaultObjectName)
+        string objectName = Harness.DefaultObjectName)
         => JsonSerializer.Deserialize<List<string>>(
             Read($@"
               var prefix = '{objectName}_data_';
@@ -319,7 +323,7 @@ public sealed class Visitor : IDisposable
     /// silently checks nothing.
     /// </para>
     /// </summary>
-    public string? CacheRecord(string objectName = Pages.DefaultObjectName)
+    public string? CacheRecord(string objectName = Harness.DefaultObjectName)
     {
         var value = Script<string>($@"
             try {{
@@ -336,39 +340,12 @@ public sealed class Visitor : IDisposable
     }
 
     /// <summary>
-    /// Whether a card is showing and how many rounds the client script has
-    /// finished, read together in one call, so a test can say that one was
-    /// true while the other had not moved. Two separate reads would leave a
-    /// gap in which the answer could change, and the ordering is the whole
-    /// point of the assertion.
-    /// </summary>
-    public (bool CardVisible, int RoundsDone) Observe(string card)
-    {
-        var answer = Script<string>($@"
-            var root = pmpRoot();
-            var el = root
-              ? root.querySelector('[data-card=""{card}""]') : null;
-            var showing = visible(el);
-            var done = 0;
-            var all = (window.__51dTest && window.__51dTest.requests) || [];
-            for (var i = 0; i < all.length; i++) {{
-              if (all[i].done
-                  && all[i].url.indexOf('/api/v4/json') !== -1) {{
-                done++;
-              }}
-            }}
-            return (showing ? '1' : '0') + '|' + done;") ?? "0|0";
-        var parts = answer.Split('|');
-        return (parts[0] == "1", int.Parse(parts[1], CultureInfo.InvariantCulture));
-    }
-
-    /// <summary>
     /// Whether the visitor is somewhere the regulation applies, as the
     /// client script resolved it. Empty where the property has no value,
     /// which is what a resource key that does not carry it produces and
     /// what every key produces until the change adding it is released.
     /// </summary>
-    public string IsGdpr(string objectName = Pages.DefaultObjectName)
+    public string IsGdpr(string objectName = Harness.DefaultObjectName)
         => Script<string>(
             $@"var o = window['{objectName}'];
                var groups = ['derived', 'device'];
@@ -477,6 +454,12 @@ public sealed class Visitor : IDisposable
             if (!root) {{ return false; }}
             var el = root.querySelector('[data-action=""{action}""]');
             if (!el) {{ return false; }}
+            if (window.__51dTimeline) {{
+              window.__51dTimeline.atPress =
+                window.__51dTimeline.finished();
+              window.__51dTimeline.push(
+                performance.now(), 'pressed {action}');
+            }}
             el.click();
             return true;");
         Assert.IsTrue(
@@ -537,14 +520,137 @@ public sealed class Visitor : IDisposable
             + $"The console said: {string.Join(" | ", Console())}");
 
     /// <summary>
-    /// What the browser asked the publisher's website for, which is the
-    /// one thing that separates a page that never loaded from a page that
-    /// loaded and then did nothing.
+    /// Which page the browser is on and how far it got, which is what
+    /// separates a page that never loaded from a page that loaded and then
+    /// did nothing.
     /// </summary>
     public string ServedSoFar()
-        => Server.Requests.Count == 0
-            ? "the browser asked this website for nothing at all"
-            : "the website served " + string.Join(", ", Server.Requests);
+    {
+        try
+        {
+            return "the browser is on "
+                + Script<string>(
+                    "return location.href + ' titled \"' + document.title"
+                    + " + '\" in state ' + document.readyState;");
+        }
+        catch (WebDriverException error)
+        {
+            return "the browser could not say which page it is on "
+                + $"({error.Message})";
+        }
+    }
+
+    #region Timeline
+
+    /// <summary>
+    /// Starts recording, frame by frame inside the page, when each of the
+    /// client script's requests is first seen and when it finishes, when
+    /// the share card is put into the dialog and when it first becomes
+    /// visible, with <see cref="Press"/> adding the moment of each press.
+    /// <para>
+    /// The ordering assertion about the share card reads its two counts
+    /// from here, through <see cref="RoundsFinishedAround"/>. It used to
+    /// poll the page from the test, and failed 3 times in 7 runs before
+    /// these tests moved. On 15 September 2026 this timeline caught one of
+    /// those failures, with the card visible at 302 ms and the answered
+    /// round finishing at 500 ms, so the card had not waited. The poll had
+    /// first seen the card after 500 ms, and counted the round that had
+    /// finished in between. Counting inside the page, at the press and at
+    /// the first frame the card is visible, measures the same thing
+    /// without the delay of reaching into the page from outside.
+    /// </para>
+    /// </summary>
+    public void StartTimeline()
+        => Script<object>(@"
+            if (window.__51dTimeline) { return null; }
+            var t0 = performance.now();
+            var events = [];
+            var path = arguments[0].toLowerCase();
+            function finished() {
+              var n = 0;
+              var all = (window.__51dTest && window.__51dTest.requests) || [];
+              for (var i = 0; i < all.length; i++) {
+                if (all[i].done
+                    && all[i].url.toLowerCase().indexOf(path) !== -1) {
+                  n++;
+                }
+              }
+              return n;
+            }
+            var tl = window.__51dTimeline = {
+              push: function (at, what) {
+                events.push(Math.round(at - t0) + 'ms ' + what);
+              },
+              read: function () { return events.join(' | '); },
+              finished: finished,
+              atPress: -1,
+              atShareVisible: -1
+            };
+            var seen = {};
+            var cardIn = false;
+            var cardVisible = false;
+            function tick() {
+              var now = performance.now();
+              var all = (window.__51dTest && window.__51dTest.requests) || [];
+              for (var i = 0; i < all.length; i++) {
+                var r = all[i];
+                if (r.url.toLowerCase().indexOf(path) === -1) { continue; }
+                if (!seen['s' + i]) {
+                  seen['s' + i] = true;
+                  tl.push(now, 'request ' + i + ' seen'
+                    + (r.done ? ' already finished' : '')
+                    + (r.body.indexOf('id.usage=') !== -1
+                      ? ' carrying an answer' : ''));
+                }
+                if (r.done && !seen['d' + i]) {
+                  seen['d' + i] = true;
+                  tl.push(now, 'request ' + i + ' finished');
+                }
+              }
+              var root = pmpRoot();
+              var card = root
+                ? root.querySelector('[data-card=""share""]') : null;
+              if (card && !cardIn) {
+                cardIn = true;
+                tl.push(now, 'share card in the dialog');
+              }
+              if (card && !cardVisible && visible(card)) {
+                cardVisible = true;
+                tl.atShareVisible = finished();
+                tl.push(now, 'share card visible');
+              }
+              if (events.length < 200) { requestAnimationFrame(tick); }
+            }
+            tl.push(t0, 'recording started');
+            requestAnimationFrame(tick);
+            return null;",
+            Demo.Chosen.JsonEndpointPath);
+
+    /// <summary>
+    /// How many of the client script's rounds had finished at the moment of
+    /// the last press, and at the first frame in which the share card was
+    /// visible, both counted inside the page, or -1 for a moment that has
+    /// not happened yet.
+    /// </summary>
+    public (int AtPress, int AtShareVisible) RoundsFinishedAround()
+    {
+        var answer = Script<string>(
+            "var t = window.__51dTimeline;"
+            + " return t ? t.atPress + '|' + t.atShareVisible : '-1|-1';")
+            ?? "-1|-1";
+        var parts = answer.Split('|');
+        return (
+            int.Parse(parts[0], CultureInfo.InvariantCulture),
+            int.Parse(parts[1], CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>What the timeline recorded, oldest first.</summary>
+    public string Timeline()
+        => Script<string>(
+            "return window.__51dTimeline ? window.__51dTimeline.read() : "
+            + "'no timeline was recorded';") ?? "unreadable";
+
+    #endregion
 
     /// <summary>Waits until the platform has put its dialog on the page.</summary>
     public void WaitForPlatform()
@@ -564,7 +670,7 @@ public sealed class Visitor : IDisposable
 
     /// <summary>Waits until the client script's object exists.</summary>
     public void WaitForClientObject(
-        string objectName = Pages.DefaultObjectName)
+        string objectName = Harness.DefaultObjectName)
         => Harness.Until(
             () => HasClientObject(objectName),
             $"an object called '{objectName}' appeared in {BrowserName}. "

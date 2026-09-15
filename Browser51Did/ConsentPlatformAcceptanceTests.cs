@@ -32,18 +32,12 @@ public class ConsentPlatformAcceptanceTests : Browser51DidTestBase
     /// case, and the identifier that comes back records that the usage was
     /// decoded rather than stated.
     /// </summary>
-    [TestMethod]
+    [Browser51DidTest]
     public void ConsentPlatformOnly_SecondRequestCarriesTheString()
     {
-        using var server = new PageServer();
         RequireMarketingIdentifiers();
-        server.Put("/", Pages.Page(
-            "Consent platform only",
-            Pages.ConsentPlatform(TcString.Personalized()),
-            Pages.ClientScriptTag()));
-
-        using var visitor = NewVisitor(Chrome, server);
-        visitor.Go(Harness.SiteA, "/");
+        using var visitor = NewVisitor(Chrome);
+        visitor.Go(Harness.SiteA, Routes.Consent);
         visitor.WaitForClientRounds(1);
         Assert.IsTrue(
             visitor.HasTheNewClientScript(),
@@ -83,6 +77,15 @@ public class ConsentPlatformAcceptanceTests : Browser51DidTestBase
             second.Form("tcstring"),
             "the framework string the platform delivered must reach the "
             + $"cloud. The body was: {second.Body}");
+        // The demo's stub consent platform delivers one fixed string, and
+        // every language's demo has to deliver the same one, so it is
+        // named here rather than trusted.
+        Assert.AreEqual(
+            TcString.Personalized(),
+            second.Form("tcstring"),
+            "the stub consent platform on the demo's consent page must "
+            + "deliver the string granting every purpose, built by "
+            + $"TcString.Personalized(). The body was: {second.Body}");
         Assert.IsNull(
             second.Form("id.usage"),
             "the client script must not decide the usage itself. A string "
@@ -116,15 +119,11 @@ public class ConsentPlatformAcceptanceTests : Browser51DidTestBase
     /// so a later page view with an answer is a different input and asks
     /// again rather than reusing this one.
     /// </summary>
-    [TestMethod]
+    [Browser51DidTest]
     public void NoPlatformAtAll_NoIdentifierAndOneWarning()
     {
-        using var server = new PageServer();
-        server.Put("/", Pages.Page(
-            "No platform", Pages.ClientScriptTag()));
-
-        using var visitor = NewVisitor(Chrome, server);
-        visitor.Go(Harness.SiteA, "/");
+        using var visitor = NewVisitor(Chrome);
+        visitor.Go(Harness.SiteA, Routes.NoPlatform);
         visitor.WaitForClientRounds(1);
         Assert.IsTrue(
             visitor.HasTheNewClientScript(),
