@@ -17,13 +17,13 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Browser51Did;
 /// </summary>
 public static class Routes
 {
-    /// <summary>The platform, then the client script.</summary>
+    /// <summary>PMP, then the client script.</summary>
     public const string Common = "common";
 
-    /// <summary>The client script, then the platform.</summary>
+    /// <summary>The client script, then PMP.</summary>
     public const string CommonScriptFirst = "common-script-first";
 
-    /// <summary>The platform, the client script and the change watcher.</summary>
+    /// <summary>PMP, the client script and the change watcher.</summary>
     public const string Change = "change";
 
     /// <summary>The first of two pages carrying what <see cref="Change"/> does.</summary>
@@ -38,11 +38,11 @@ public static class Routes
     /// <summary>The client script alone.</summary>
     public const string NoPlatform = "no-platform";
 
-    /// <summary>The platform alone, with no client script tag.</summary>
+    /// <summary>PMP alone, with no client script tag.</summary>
     public const string PlatformOnly = "platform-only";
 
     /// <summary>
-    /// The platform alone, naming the client script's object
+    /// PMP alone, naming the client script's object
     /// <see cref="Harness.NamedObject"/>.
     /// </summary>
     public const string NamedObject = "named-object";

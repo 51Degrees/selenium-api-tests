@@ -11,11 +11,10 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Browser51Did;
 /// are set, because those are the only ones the server reads when it works
 /// out a usage from a string.
 /// <para>
-/// This is the same construction as <c>TcStringBuilder</c> in the cloud
-/// repository's <c>Did/Tests/FiftyOne.Did.OnPremise.Tests</c>. It is
-/// repeated here because that is another repository, and because a browser
-/// test that quietly changed when a unit test helper changed would be worse
-/// than a small repetition.
+/// This is the same construction the cloud service's own unit tests use.
+/// It is repeated here rather than shared, because a browser test that
+/// quietly changed when a unit test helper changed would be worse than a
+/// small repetition.
 /// </para>
 /// <para>
 /// Every language's demo delivers <see cref="Personalized"/> from its stub

@@ -75,7 +75,7 @@ public sealed class Visitor : IDisposable
     };
 
     /// <summary>
-    /// Finding the preference platform's dialog. It renders into a shadow
+    /// Finding PMP's dialog. It renders into a shadow
     /// root attached to a plain div with no name of its own, so the root
     /// is found by what is inside it.
     /// </summary>
@@ -169,7 +169,7 @@ public sealed class Visitor : IDisposable
             .ToList();
 
     /// <summary>
-    /// The preference platform's calls to the shared store, being the read
+    /// PMP's calls to the shared store, being the read
     /// on load and the write when a visitor agrees to share.
     /// </summary>
     public IReadOnlyList<RecordedRequest> SharedStoreRequests()
@@ -200,7 +200,7 @@ public sealed class Visitor : IDisposable
             .Where(line => line.Contains(text, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-    /// <summary>The preferences the platform's action URL was fired with.</summary>
+    /// <summary>The preferences PMP's action URL was fired with.</summary>
     public IReadOnlyList<string> Actions()
         => JsonSerializer.Deserialize<List<string>>(
             Read("return JSON.stringify("
@@ -372,10 +372,10 @@ public sealed class Visitor : IDisposable
 
     #endregion
 
-    #region The preference platform
+    #region PMP
 
-    /// <summary>Whether the platform has put anything on the page yet.</summary>
-    public bool PlatformLoaded() => Script<bool>("return pmpRoot() !== null;");
+    /// <summary>Whether PMP has put anything on the page yet.</summary>
+    public bool PmpLoaded() => Script<bool>("return pmpRoot() !== null;");
 
     /// <summary>Whether a named card is on the page and visible.</summary>
     public bool CardVisible(string card)
@@ -394,11 +394,10 @@ public sealed class Visitor : IDisposable
     /// </para>
     /// <para>
     /// The button is found by what it does rather than by its class,
-    /// because the build renames every class in the stylesheet to one or
-    /// two letters (pmp/dist/class-map.json turns pmp-fab into y and
-    /// pmp-popup into ag), so a test written against the class names in
-    /// the source finds nothing in the bundle a publisher is actually
-    /// served. The data attributes are not renamed.
+    /// because the PMP build renames every class in the stylesheet to one
+    /// or two letters, so a test written against the class names in the
+    /// source finds nothing in the bundle a publisher is actually served.
+    /// The data attributes are not renamed.
     /// </para>
     /// </summary>
     public bool BubbleOnly()
@@ -419,10 +418,10 @@ public sealed class Visitor : IDisposable
     /// message. A test that says only that something was not visible
     /// leaves the next person to open a browser by hand and find out why.
     /// </summary>
-    public string PlatformState()
+    public string PmpState()
         => Script<string>(@"
             var root = pmpRoot();
-            if (!root) { return 'the platform has rendered nothing'; }
+            if (!root) { return 'the PMP has rendered nothing'; }
             function describe(el, name) {
               if (!el) { return name + '=absent'; }
               var box = el.getBoundingClientRect();
@@ -469,10 +468,10 @@ public sealed class Visitor : IDisposable
     }
 
     /// <summary>
-    /// The answer the platform is holding, through the getter it exposes
+    /// The answer PMP is holding, through the getter it exposes
     /// for a publisher. Empty where it holds none.
     /// </summary>
-    public string PlatformPreference()
+    public string PmpPreference()
         => Script<string>(@"
             var api = window.__51d_pmp;
             if (!api || typeof api.preference !== 'function') { return ''; }
@@ -481,7 +480,7 @@ public sealed class Visitor : IDisposable
             ?? "";
 
     /// <summary>Opens the dialog again, as a publisher's own link would.</summary>
-    public void OpenPlatform()
+    public void OpenPmp()
         => Script<object>("window.__51d_pmp.open(); return null;");
 
     /// <summary>
@@ -652,11 +651,11 @@ public sealed class Visitor : IDisposable
 
     #endregion
 
-    /// <summary>Waits until the platform has put its dialog on the page.</summary>
-    public void WaitForPlatform()
+    /// <summary>Waits until PMP has put its dialog on the page.</summary>
+    public void WaitForPmp()
         => Harness.Until(
-            PlatformLoaded,
-            $"the preference platform loaded in {BrowserName}. "
+            PmpLoaded,
+            $"PMP loaded in {BrowserName}. "
             + $"{ServedSoFar()}. The console said: "
             + $"{string.Join(" | ", Console())}");
 

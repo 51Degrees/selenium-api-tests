@@ -8,20 +8,21 @@ using FiftyOne.Did.Model;
 namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Browser51Did;
 
 /// <summary>
-/// The preference platform and the client script on one page, which is the
+/// PMP and the client script on one page, which is the
 /// arrangement the design is built around, proved in a real browser.
 /// <para>
-/// These are demonstrations 1, 3 and 4 of the acceptance list, with the
-/// change of answer and the alternative answer that came from the later
-/// decisions. Every assertion is on an ordering of requests and page
-/// states, never on a clock.
+/// These cover the shared choice read on a second site, the first visit
+/// that runs the whole sequence, and the two tags in either order, with
+/// the change of answer and the alternative answer alongside them. Every
+/// assertion is on an ordering of requests and page states, never on a
+/// clock.
 /// </para>
 /// </summary>
 [TestClass, TestCategory("Browser51Did")]
-public class PlatformAcceptanceTests : Browser51DidTestBase
+public class PmpAcceptanceTests : Browser51DidTestBase
 {
     /// <summary>
-    /// Demonstration 3, and the one that carries the most. A first visit,
+    /// The test that carries the most. A first visit,
     /// the visitor answers the first card, the answer reaches the client
     /// script, the full sequence runs with the usage known and an
     /// identifier comes back with the signal source recorded as direct.
@@ -29,36 +30,35 @@ public class PlatformAcceptanceTests : Browser51DidTestBase
     /// waits between the two cards.
     /// </summary>
     [Browser51DidTest]
-    public void CommonPath_PlatformThenScript_Chrome()
-        => CommonPath(Chrome, platformFirst: true);
+    public void CommonPath_PmpThenScript_Chrome()
+        => CommonPath(Chrome, pmpFirst: true);
 
     /// <summary>
-    /// The same, in the other browser. Demonstration 9 asks for both,
-    /// because anything the shared choice travels on behaves differently
-    /// between them.
+    /// The same, in the other browser. Both are run because anything the
+    /// shared choice travels on behaves differently between them.
     /// </summary>
     [Browser51DidTest]
-    public void CommonPath_PlatformThenScript_Firefox()
-        => CommonPath(Firefox, platformFirst: true);
+    public void CommonPath_PmpThenScript_Firefox()
+        => CommonPath(Firefox, pmpFirst: true);
 
     /// <summary>
-    /// The same page with the two tags the other way round. The platform's
+    /// The same page with the two tags the other way round. PMP's
     /// bundle loads on its own timetable, so the announcement has to reach
     /// the client script whichever tag the publisher wrote first, and a
     /// design that only worked one way round would pass the test above and
     /// fail on half the customers' pages.
     /// </summary>
     [Browser51DidTest]
-    public void CommonPath_ScriptThenPlatform_Chrome()
-        => CommonPath(Chrome, platformFirst: false);
+    public void CommonPath_ScriptThenPmp_Chrome()
+        => CommonPath(Chrome, pmpFirst: false);
 
-    private void CommonPath(string browser, bool platformFirst)
+    private void CommonPath(string browser, bool pmpFirst)
     {
         RequireMarketingIdentifiers();
         using var visitor = NewVisitor(browser);
         visitor.Go(
             Harness.SiteA,
-            platformFirst ? Routes.Common : Routes.CommonScriptFirst);
+            pmpFirst ? Routes.Common : Routes.CommonScriptFirst);
 
         // The first round. Nobody has been asked yet, so nothing may be
         // created, which is the rule the whole programme exists for.
@@ -81,7 +81,7 @@ public class PlatformAcceptanceTests : Browser51DidTestBase
             + "resolved.");
 
         // The visitor answers.
-        visitor.WaitForPlatform();
+        visitor.WaitForPmp();
         visitor.WaitForCard("preferences");
         // Records when each round finishes and when the share card arrives,
         // for the failure message below. It changes nothing on the page.
@@ -152,7 +152,7 @@ public class PlatformAcceptanceTests : Browser51DidTestBase
         var identifier = visitor.Identifier();
         AssertDirect(
             identifier,
-            "an answer given on the platform is stated directly");
+            "an answer given on PMP is stated directly");
         Assert.AreEqual(
             Usage.Standard,
             UsageOf(identifier, "the answer was standard"),
@@ -188,7 +188,7 @@ public class PlatformAcceptanceTests : Browser51DidTestBase
     }
 
     /// <summary>
-    /// Demonstration 1. A choice made on one site is read on another, the
+    /// A choice made on one site is read on another, the
     /// visitor is not asked again, and the client script still creates an
     /// identifier from the answer with the signal source recorded as
     /// direct.
@@ -227,14 +227,14 @@ public class PlatformAcceptanceTests : Browser51DidTestBase
 
         // Site B, a first visit, in the same browser.
         visitor.Go(Harness.SiteB, Routes.Common);
-        visitor.WaitForPlatform();
+        visitor.WaitForPmp();
         visitor.WaitForClientRounds(1);
 
         var read = visitor.SharedStoreRequests()
             .FirstOrDefault(r => r.Method == "GET" && r.Done);
         Assert.IsNotNull(
             read,
-            "the platform must ask the shared store what this visitor "
+            "PMP must ask the shared store what this visitor "
             + "already chose. It made no such call. The requests were: "
             + string.Join(" || ",
                 visitor.Requests().Select(r => r.ToString())));
@@ -246,7 +246,7 @@ public class PlatformAcceptanceTests : Browser51DidTestBase
         Assert.IsTrue(
             visitor.BubbleOnly(),
             "a visitor who has already answered is not asked again, so only "
-            + $"the floating button shows. The dialog is: {visitor.PlatformState()}"
+            + $"the floating button shows. The dialog is: {visitor.PmpState()}"
             + ". The console said: "
             + string.Join(" | ", visitor.Console()));
 
@@ -267,7 +267,7 @@ public class PlatformAcceptanceTests : Browser51DidTestBase
         var identifier = visitor.Identifier();
         AssertDirect(
             identifier,
-            "a choice made on the platform stays a stated usage on the "
+            "a choice made on PMP stays a stated usage on the "
             + "second site");
         Assert.AreEqual(
             Usage.Standard,
@@ -276,15 +276,15 @@ public class PlatformAcceptanceTests : Browser51DidTestBase
 
         Assert.AreEqual(
             "standard",
-            visitor.PlatformPreference(),
-            "the platform's own getter must answer with the choice it is "
+            visitor.PmpPreference(),
+            "PMP's own getter must answer with the choice it is "
             + "acting on, on the second site as much as on the first.");
 
         var stored = visitor.LocalStorageKeys();
         Assert.AreEqual(
             0,
             stored.Count,
-            "nothing new is written to browser storage by the platform, and "
+            "nothing new is written to browser storage by PMP, and "
             + "the second site's answer lives in the shared store rather "
             + "than being copied here. It wrote: "
             + string.Join(", ", stored));
@@ -311,8 +311,8 @@ public class PlatformAcceptanceTests : Browser51DidTestBase
         var roundsBefore = visitor.ClientRequests().Count;
         var sequenceBefore = Sequence(visitor.ClientRequests().Last());
 
-        // The visitor changes their mind, through the platform.
-        visitor.OpenPlatform();
+        // The visitor changes their mind, through PMP.
+        visitor.OpenPmp();
         visitor.WaitForCard("preferences");
         visitor.Press("personalized");
 
@@ -397,7 +397,7 @@ public class PlatformAcceptanceTests : Browser51DidTestBase
             "the visitor pressed standard first.");
 
         // The answer is changed before the visitor leaves the first page.
-        visitor.OpenPlatform();
+        visitor.OpenPmp();
         visitor.WaitForCard("preferences");
         visitor.Press("personalized");
         Harness.Until(
@@ -497,8 +497,8 @@ public class PlatformAcceptanceTests : Browser51DidTestBase
         // it and what the request carried is on the record.
         Assert.AreEqual(
             "non-marketing",
-            visitor.PlatformPreference(),
-            "the platform is holding an answer even though its framework "
+            visitor.PmpPreference(),
+            "PMP is holding an answer even though its framework "
             + "surface reports none, and the answer is what creates the "
             + "identifier.");
     }

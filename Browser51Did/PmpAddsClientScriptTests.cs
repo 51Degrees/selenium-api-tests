@@ -8,12 +8,12 @@ using FiftyOne.Did.Model;
 namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Browser51Did;
 
 /// <summary>
-/// A page carrying the preference platform's tag and no client script tag
+/// A page carrying PMP's tag and no client script tag
 /// at all.
 /// <para>
-/// The platform has one route to the third party cookie result and to
+/// PMP has one route to the third party cookie result and to
 /// whether the regulation applies, which is the client script's object.
-/// Where the page has no client script tag the platform adds the script
+/// Where the page has no client script tag PMP adds the script
 /// itself, using the cloud that served it and the
 /// resource key it already holds, and says in the console that it did. A
 /// second route would be a second answer to the same question, and a
@@ -22,42 +22,42 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Browser51Did;
 /// </para>
 /// </summary>
 [TestClass, TestCategory("Browser51Did")]
-public class PlatformAddsClientScriptTests : Browser51DidTestBase
+public class PmpAddsClientScriptTests : Browser51DidTestBase
 {
     /// <summary>
     /// The whole of it in one page view, from the script arriving to the
     /// identifier coming back.
     /// </summary>
     [Browser51DidTest]
-    public void NoClientScriptTag_PlatformAddsItAndTheAnswerStillCreates()
+    public void NoClientScriptTag_PmpAddsItAndTheAnswerStillCreates()
     {
         RequireMarketingIdentifiers();
         using var visitor = NewVisitor(Chrome);
         visitor.Go(Harness.SiteA, Routes.PlatformOnly);
-        visitor.WaitForPlatform();
+        visitor.WaitForPmp();
 
-        // The script the platform added, named by where it came from and
+        // The script PMP added, named by where it came from and
         // which publisher it is for.
         Harness.Until(
             () => AddedClientScript(visitor) != null,
-            "the platform added the client script. The console said: "
+            "PMP added the client script. The console said: "
             + string.Join(" | ", visitor.Console()));
         var added = AddedClientScript(visitor)!;
         Assert.IsTrue(
             added.StartsWith(Harness.CloudUrl!, StringComparison.OrdinalIgnoreCase),
-            "the script must come from the cloud that served the platform, "
-            + "because that is the only cloud the platform knows about. It "
+            "the script must come from the cloud that served PMP, "
+            + "because that is the only cloud PMP knows about. It "
             + $"came from {added}.");
         Assert.IsTrue(
             added.Contains(Harness.Resource!, StringComparison.Ordinal),
-            "the script must be asked for with the resource key the "
-            + "platform already holds, or the cloud has no idea which "
+            "the script must be asked for with the resource key PMP "
+            + "already holds, or the cloud has no idea which "
             + $"publisher is asking. The URL was {added}.");
 
         // And it said so, which is the point of the convenience.
         Assert.IsTrue(
             visitor.ConsoleMatching(Harness.NoClientScriptMessage).Count > 0,
-            "the platform must say in the console that there was no client "
+            "PMP must say in the console that there was no client "
             + "script object on the page, because a publisher who left the "
             + "tag out has no other way of finding out. The console said: "
             + string.Join(" | ", visitor.Console()));
@@ -71,10 +71,10 @@ public class PlatformAddsClientScriptTests : Browser51DidTestBase
         visitor.WaitForClientObject();
         Assert.IsTrue(
             visitor.HasTheNewClientScript(),
-            "the script the platform added must be the new one, or the "
-            + "platform has quietly given itself the old behaviour.");
+            "the script PMP added must be the new one, or PMP "
+            + "has quietly given itself the old behaviour.");
 
-        // The third party cookie result reached the platform through it,
+        // The third party cookie result reached PMP through it,
         // which is the reason the script is added at all.
         Harness.Until(
             () => visitor.ThirdPartyCookies() != "",
@@ -88,7 +88,7 @@ public class PlatformAddsClientScriptTests : Browser51DidTestBase
         Harness.Until(
             () => visitor.ClientRequests()
                 .Any(r => r.Done && r.Form("id.usage") == "standard"),
-            "the answer reached the cloud through the script the platform "
+            "the answer reached the cloud through the script PMP "
             + "added. The console said: "
             + string.Join(" | ", visitor.Console()));
         var answered = visitor.ClientRequests()
@@ -112,18 +112,18 @@ public class PlatformAddsClientScriptTests : Browser51DidTestBase
             + string.Join(" | ", visitor.Console()));
         AssertDirect(
             visitor.Identifier(),
-            "an answer given on the platform is stated directly");
+            "an answer given on PMP is stated directly");
         Assert.AreEqual(
             Usage.Standard,
             UsageOf(visitor.Identifier(), "the answer"),
             "the visitor pressed standard.");
 
-        // One script, not two. The platform adds one only where there is
+        // One script, not two. PMP adds one only where there is
         // none, so nothing here may trip the warning about a second copy.
         Assert.AreEqual(
             0,
             visitor.ConsoleMatching(Harness.SecondInstanceWarning).Count,
-            "the platform added a second copy of the client script, or "
+            "PMP added a second copy of the client script, or "
             + "added one to a page that already had it. The console said: "
             + string.Join(" | ", visitor.Console()));
         Assert.AreEqual(
@@ -135,7 +135,7 @@ public class PlatformAddsClientScriptTests : Browser51DidTestBase
 
     /// <summary>
     /// The publisher may name the object something other than the default,
-    /// and the platform then asks for the script under that name, finds it
+    /// and PMP then asks for the script under that name, finds it
     /// under that name, and says which name it used.
     /// </summary>
     [Browser51DidTest]
@@ -144,18 +144,18 @@ public class PlatformAddsClientScriptTests : Browser51DidTestBase
         const string objectName = Harness.NamedObject;
         using var visitor = NewVisitor(Chrome);
         visitor.Go(Harness.SiteA, Routes.NamedObject);
-        visitor.WaitForPlatform();
+        visitor.WaitForPmp();
 
         Harness.Until(
             () => AddedClientScript(visitor) != null,
-            "the platform added the client script. The console said: "
+            "PMP added the client script. The console said: "
             + string.Join(" | ", visitor.Console()));
         var added = AddedClientScript(visitor)!;
         Assert.IsTrue(
             added.Contains(objectName, StringComparison.Ordinal),
             "the name the publisher asked for must be on the URL, or the "
-            + "cloud renders the script under the default name and the "
-            + $"platform then looks for the wrong object. The URL was {added}.");
+            + "cloud renders the script under the default name and PMP "
+            + $"then looks for the wrong object. The URL was {added}.");
 
         visitor.WaitForClientObject(objectName);
         Assert.IsTrue(
@@ -185,7 +185,7 @@ public class PlatformAddsClientScriptTests : Browser51DidTestBase
     {
         using var visitor = NewVisitor(Chrome);
         visitor.Go(Harness.SiteA, Routes.PlatformOnly);
-        visitor.WaitForPlatform();
+        visitor.WaitForPmp();
         visitor.WaitForClientObject(Harness.DefaultObjectName);
         Assert.IsTrue(
             visitor.HasTheNewClientScript(Harness.DefaultObjectName),
@@ -193,7 +193,7 @@ public class PlatformAddsClientScriptTests : Browser51DidTestBase
     }
 
     /// <summary>
-    /// The client script the platform added, or null where it has not
+    /// The client script PMP added, or null where it has not
     /// added one yet. Anything the cloud serves as a resource key script
     /// counts, and the page carried none of its own, so whatever is there
     /// was added.

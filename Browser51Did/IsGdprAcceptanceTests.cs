@@ -7,20 +7,21 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Browser51Did;
 
 /// <summary>
-/// Whether the regulation applies, and where the preference platform gets
+/// Whether the regulation applies, and where PMP gets
 /// that from.
 /// <para>
-/// **These cannot pass until the change that puts IsGdpr in the cloud is
-/// released**, being pipeline-dotnet pull request 413 and then cloud pull
-/// request 372. The harness entitlement record already asks for the
-/// property, so the moment the container carries it these run. Until then
+/// **These cannot pass until the change that puts IsGdpr in the cloud
+/// service is released**, being pipeline-dotnet pull request 413 and then
+/// a cloud service release that carries it. The harness entitlement
+/// record already asks for the property, so the moment the container
+/// carries it these run. Until then
 /// the first test reports inconclusive with that reason rather than
 /// failing, because a red test nobody can fix teaches a reader to ignore
 /// red tests.
 /// </para>
 /// <para>
 /// The dialog is shown and an identifier created either way, because the
-/// question the platform asks is the Model Terms usage, which is a matter
+/// question PMP asks is the Model Terms usage, which is a matter
 /// of contract, and not a consent under the regulation.
 /// </para>
 /// </summary>
@@ -28,7 +29,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Browser51Did;
 public class IsGdprAcceptanceTests : Browser51DidTestBase
 {
     /// <summary>
-    /// With the property carrying a value, the platform's framework
+    /// With the property carrying a value, PMP's framework
     /// surface reports it, and a false value does not stop the visitor
     /// being asked.
     /// </summary>
@@ -37,7 +38,7 @@ public class IsGdprAcceptanceTests : Browser51DidTestBase
     {
         using var visitor = NewVisitor(Chrome);
         visitor.Go(Harness.SiteA, Routes.Common);
-        visitor.WaitForPlatform();
+        visitor.WaitForPmp();
         visitor.WaitForClientRounds(1);
 
         var value = visitor.IsGdpr();
@@ -45,18 +46,19 @@ public class IsGdprAcceptanceTests : Browser51DidTestBase
         {
             Assert.Inconclusive(
                 "The client script's object carries no isgdpr value, so "
-                + "there is nothing for the platform to read. The property "
-                + "reaches the cloud in pipeline-dotnet pull request 413 "
-                + "and then cloud pull request 372, and the harness "
-                + "entitlement record already asks for it, so this runs as "
-                + "soon as the container carries it.");
+                + "there is nothing for the PMP to read. The property "
+                + "reaches the cloud service in pipeline-dotnet pull "
+                + "request 413 and then a cloud service release that "
+                + "carries it, and the harness entitlement record already "
+                + "asks for it, so this runs as soon as the container "
+                + "carries it.");
         }
 
         var applies = visitor.GdprApplies();
         Assert.AreEqual(
             string.Equals(value, "True", StringComparison.OrdinalIgnoreCase),
             applies,
-            "the platform's framework surface must report what the client "
+            "PMP's framework surface must report what the client "
             + $"script resolved. The script said '{value}' and the surface "
             + $"said {applies}.");
 
@@ -76,15 +78,15 @@ public class IsGdprAcceptanceTests : Browser51DidTestBase
     }
 
     /// <summary>
-    /// With no value to read, the platform says so once and carries on as
+    /// With no value to read, PMP says so once and carries on as
     /// though the regulation applies, which is the safe way round.
     /// </summary>
     [Browser51DidTest]
-    public void IsGdprAbsent_PlatformWarnsAndAssumesItApplies()
+    public void IsGdprAbsent_PmpWarnsAndAssumesItApplies()
     {
         using var visitor = NewVisitor(Chrome);
         visitor.Go(Harness.SiteA, Routes.Common);
-        visitor.WaitForPlatform();
+        visitor.WaitForPmp();
         visitor.WaitForClientRounds(1);
 
         if (visitor.IsGdpr() != "")
@@ -98,11 +100,11 @@ public class IsGdprAcceptanceTests : Browser51DidTestBase
 
         Assert.IsTrue(
             visitor.GdprApplies(),
-            "with nothing to read, the platform assumes the regulation "
+            "with nothing to read, PMP assumes the regulation "
             + "applies rather than assuming it does not.");
         Assert.IsTrue(
             visitor.ConsoleMatching("isgdpr").Count > 0,
-            "the platform says once that it could not read the property, "
+            "PMP says once that it could not read the property, "
             + "because a publisher whose key does not carry it has no other "
             + "way of finding out. The console said: "
             + string.Join(" | ", visitor.Console()));

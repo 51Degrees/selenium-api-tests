@@ -25,7 +25,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Browser51Did;
 /// <para>
 /// The thing under test is a demo, a web app serving the pages these tests
 /// load, which every language mirrors, started with a cloud endpoint and a
-/// resource key. The preference platform and the shared store come from
+/// resource key. PMP and the shared store come from
 /// that cloud whichever demo is chosen. See <see cref="Demo"/>.
 /// </para>
 /// </summary>
@@ -124,14 +124,14 @@ public static class Harness
 
     /// <summary>
     /// The object name a page uses when it does not ask for another one,
-    /// which is what the client script and the preference platform both
+    /// which is what the client script and PMP both
     /// fall back to.
     /// </summary>
     public const string DefaultObjectName = "fod";
 
     /// <summary>
     /// The object name the demo's <see cref="Routes.NamedObject"/> page
-    /// gives the preference platform in data-object-name.
+    /// gives PMP in data-object-name.
     /// </summary>
     public const string NamedObject = "fiftyOneData";
 
@@ -176,16 +176,14 @@ public static class Harness
     /// under test carries it, which is what makes a green run mean
     /// something.
     /// <para>
-    /// Settled by the template work package. If that wording changes, this
-    /// is the one place to change it, and the report for that package
-    /// carries the string in force.
+    /// This is the one place to change if that wording changes.
     /// </para>
     /// </summary>
     public const string IterationLimitMessage = "51Degrees: the maximum of";
 
     /// <summary>
     /// Text that exists only inside the template's user prompt section,
-    /// being the name the preference platform puts its own surface under.
+    /// being the name PMP puts its own surface under.
     /// The iteration limit message above sits outside that section, so it
     /// says the template is the new one and says nothing about whether the
     /// block was rendered. This says the block is there.
@@ -202,7 +200,7 @@ public static class Harness
     /// the sentence may change, and the test using it also asserts that no
     /// value was printed beside it.
     /// </summary>
-    public const string NoPlatformMessage =
+    public const string NoPmpMessage =
         "no preference platform was found";
 
     /// <summary>
@@ -218,8 +216,8 @@ public static class Harness
         "already exists on this page";
 
     /// <summary>
-    /// What the preference platform says when it finds no client script
-    /// object on the page. Read from the platform's own source, where the
+    /// What PMP says when it finds no client script
+    /// object on the page. Read from PMP's own source, where the
     /// sentence is "There is no client script object named '{name}' on
     /// this page, so the client script is being added from the cloud that
     /// served this one."
@@ -236,8 +234,6 @@ public static class Harness
 
     #endregion
 
-    /// <summary>The preference platform's loader, as the page asks for it.</summary>
-    public static string PlatformLoaderUrl() => $"{CloudUrl}/api/v4/pmp";
 
     /// <summary>
     /// Server to server, with certificate validation relaxed because the
@@ -266,8 +262,8 @@ public static class Harness
     /// Two markers, because they say different things. The iteration limit
     /// message says the template is the new one. It sits outside the user
     /// prompt section, so it is in the rendered script whenever updates
-    /// are enabled, whether or not the block itself was rendered. The
-    /// platform's own global name appears only inside the section, so it
+    /// are enabled, whether or not the block itself was rendered. PMP's
+    /// own global name appears only inside the section, so it
     /// is what says the block is actually there. A run that had only the
     /// first would be testing the new template with the block switched
     /// off, which passes nothing it is meant to prove.

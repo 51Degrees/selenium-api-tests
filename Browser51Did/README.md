@@ -54,7 +54,7 @@ user prompt block.
 | `change` | PMP, client script, change watcher | change of answer on one page |
 | `two/one`, `two/two` | the same as `change` | change of answer across pages |
 | `consent` | stub consent platform, then client script | consent platform only |
-| `no-platform` | client script alone | no platform at all |
+| `no-platform` | client script alone | no PMP at all |
 | `platform-only` | PMP alone | PMP adds the client script, default object name |
 | `named-object` | PMP with `data-object-name="fiftyOneData"` | object name attribute |
 
@@ -123,5 +123,5 @@ pages carry a tag that is not `async`, which has always run before the PMP
 looks for its object. And on a page with no client script tag the PMP adds
 the cloud's script, which posts to the cloud's `/api/v4/json`, whilst
 `Visitor.ClientRequests` looks on the pipeline's path, so
-`NoClientScriptTag_PlatformAddsItAndTheAnswerStillCreates` fails in that
+`NoClientScriptTag_PmpAddsItAndTheAnswerStillCreates` fails in that
 mode until the suite looks for the added script's own requests.

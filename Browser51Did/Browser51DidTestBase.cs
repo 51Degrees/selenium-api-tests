@@ -198,7 +198,7 @@ public abstract class Browser51DidTestBase
 
     /// <summary>
     /// The identifier says the usage was stated by the caller, which is
-    /// what the preference platform does, so the signal source is direct.
+    /// what PMP does, so the signal source is direct.
     /// </summary>
     protected static void AssertDirect(string identifier, string what)
     {

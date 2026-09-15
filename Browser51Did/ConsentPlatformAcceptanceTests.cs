@@ -8,10 +8,9 @@ using FiftyOne.Did.Model;
 namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Browser51Did;
 
 /// <summary>
-/// A page with a consent platform on it and no preference platform, which
-/// is the other half of demonstration 2 and the whole of demonstration 3's
-/// second case, being the identifier whose usage was decoded from a
-/// framework string rather than stated.
+/// A page with a consent platform on it and no PMP, which is the case
+/// where the identifier's usage was decoded from a framework string
+/// rather than stated.
 /// <para>
 /// The consent platform here is a stub, and that is the contract rather
 /// than a gap. The client script uses only what the framework's
@@ -19,7 +18,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Browser51Did;
 /// addEventListener and a callback carrying tcString and eventStatus, so a
 /// stub honouring those is what every product has to do, and a product
 /// that breaks it is the product's defect. The two never share a page, so
-/// nothing here also carries the preference platform.
+/// nothing here also carries PMP.
 /// </para>
 /// </summary>
 [TestClass, TestCategory("Browser51Did")]
@@ -75,7 +74,7 @@ public class ConsentPlatformAcceptanceTests : Browser51DidTestBase
         var second = visitor.ClientRequests().Last();
         Assert.IsNotNull(
             second.Form("tcstring"),
-            "the framework string the platform delivered must reach the "
+            "the framework string PMP delivered must reach the "
             + $"cloud. The body was: {second.Body}");
         // The demo's stub consent platform delivers one fixed string, and
         // every language's demo has to deliver the same one, so it is
@@ -114,13 +113,13 @@ public class ConsentPlatformAcceptanceTests : Browser51DidTestBase
     }
 
     /// <summary>
-    /// Demonstration 8. A page with nowhere to get an answer from creates
+    /// A page with nowhere to get an answer from creates
     /// nothing, says so once, and stores a record that carries no answer,
     /// so a later page view with an answer is a different input and asks
     /// again rather than reusing this one.
     /// </summary>
     [Browser51DidTest]
-    public void NoPlatformAtAll_NoIdentifierAndOneWarning()
+    public void NoPmpAtAll_NoIdentifierAndOneWarning()
     {
         using var visitor = NewVisitor(Chrome);
         visitor.Go(Harness.SiteA, Routes.NoPlatform);
@@ -162,7 +161,7 @@ public class ConsentPlatformAcceptanceTests : Browser51DidTestBase
             + "does have one would look the same as this and be served "
             + $"from the cache. The record was: {record}");
 
-        var warnings = visitor.ConsoleMatching(Harness.NoPlatformMessage);
+        var warnings = visitor.ConsoleMatching(Harness.NoPmpMessage);
         Assert.AreEqual(
             1,
             warnings.Count,
