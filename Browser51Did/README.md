@@ -6,7 +6,7 @@ only from an answer the visitor actually gave, with the 51Degrees Preference
 Management Platform (PMP) and the client script on a publisher's page.
 
 They drive a **demo**, a small web app that serves every page the tests
-load. The dotnet demo is `Examples/Cloud/PreferenceManagement-Web` in
+load. The dotnet demo is `Examples/Cloud/pmp-web` in
 [device-detection-dotnet-examples](https://github.com/51Degrees/device-detection-dotnet-examples).
 The pages, the recorder that watches them, the change watcher and the stub
 consent platform are plain static files in that demo, so a demo in another
@@ -73,7 +73,8 @@ the Contract tests start an example.
 | Variable | Meaning |
 | --- | --- |
 | `51DEGREES_CLOUD_ENDPOINT` | The cloud, including its `api/v4` path. Handed to the demo unchanged. |
-| `51DEGREES_RESOURCE_KEY` | A resource key the cloud creates 51Dids for standard and personalized answers with. Handed to the demo unchanged, and never printed, because every message a test produces has it taken out. |
+| `51DEGREES_RESOURCE_KEY` | A resource key the cloud creates 51Dids for standard and personalized answers with. Handed to the demo under this name, and never printed, because every message a test produces has it taken out. |
+| `_51DEGREES_RESOURCE_KEY_51DID` | Read only where `51DEGREES_RESOURCE_KEY` is unset, and handed to the demo as `51DEGREES_RESOURCE_KEY`. This is the name continuous integration sets, for a resource key carrying the 51Did product. |
 | `DEMO_LANG` | The demo to launch from the sibling checkout. `dotnet` unless set. |
 | `DEMO_URL` | A demo already running, which is used instead of launching one. |
 | `DEMO_MODE` | `cloud` unless set to `pipeline`. |
@@ -87,10 +88,11 @@ env CLOUD_ROOT_URL="http://localhost:5050/" \
 ```
 
 `env` is used because bash cannot export a variable whose name starts with a
-digit. In PowerShell write `${env:51DEGREES_RESOURCE_KEY} = '...'`.
+digit, which is also why the name continuous integration sets starts with an
+underscore. In PowerShell write `${env:51DEGREES_RESOURCE_KEY} = '...'`.
 
-With the two input variables unset every test reports inconclusive with the
-reason. A resource key that cannot create reports inconclusive with the
+With the endpoint or both resource key names unset every test reports
+inconclusive with the reason. A resource key that cannot create reports inconclusive with the
 cloud's own refusal, and so does a cloud that will not hold a shared choice.
 The shared choice needs the browser to keep the cloud's `Secure`
 `SameSite=None` cookie, which both browsers did from plain HTTP on

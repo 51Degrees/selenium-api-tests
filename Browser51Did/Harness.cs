@@ -81,7 +81,10 @@ public static class Harness
 
     /// <summary>
     /// The resource key the demo is started with, from
-    /// 51DEGREES_RESOURCE_KEY, the variable every language's demo reads.
+    /// 51DEGREES_RESOURCE_KEY, the variable every language's demo reads
+    /// first, or where that is unset from _51DEGREES_RESOURCE_KEY_51DID,
+    /// the name continuous integration sets. The demo is given it as
+    /// 51DEGREES_RESOURCE_KEY either way.
     /// <para>
     /// The tests that create a 51Did for a standard or personalized answer
     /// need a resource key whose products include CloudV5FODiD.
@@ -113,9 +116,11 @@ public static class Harness
                 string.IsNullOrEmpty(Resource) ? ResourceKey.Missing : null,
             }.Where(missing => missing != null))
         + " 51DEGREES_CLOUD_ENDPOINT names the cloud including its api/v4 "
-        + "path, and 51DEGREES_RESOURCE_KEY a resource key the cloud "
+        + "path, and 51DEGREES_RESOURCE_KEY, or where that is unset "
+        + "_51DEGREES_RESOURCE_KEY_51DID, a resource key the cloud "
         + "creates 51Dids for standard and personalized answers with. Both "
-        + "are handed to the demo unchanged. See Browser51Did/README.md.";
+        + "are handed to the demo under the first names. See "
+        + "Browser51Did/README.md.";
 
     /// <summary>
     /// The object name a page uses when it does not ask for another one,
@@ -422,8 +427,10 @@ public static class Harness
                 + "personalized both are, so nothing here would be "
                 + "testing the thing it is for. The service said: "
                 + Redacted(_marketingRefusal)
-                + " Point 51DEGREES_RESOURCE_KEY at a resource key "
-                + "the service creates standard identifiers for.");
+                + " Point 51DEGREES_RESOURCE_KEY, or in continuous "
+                + "integration _51DEGREES_RESOURCE_KEY_51DID, at a "
+                + "resource key the service creates standard identifiers "
+                + "for.");
         }
     }
 

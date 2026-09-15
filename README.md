@@ -43,7 +43,8 @@ and no keys are committed.
 | `ENTERPRISE_V4_LICENSE` | `CloudInternal` | License passed to the JS endpoint to unlock paid properties. |
 | `SELENIUM_URL` | optional | Selenium grid URL; omit for a local Chrome driver. |
 | `EXAMPLE_URL` / `EXAMPLE_LANG` | `Contract` | The example app to test (CI / local). |
-| `51DEGREES_CLOUD_ENDPOINT` / `51DEGREES_RESOURCE_KEY` | `Browser51Did` | Handed unchanged to the demo, the same names every language's demo reads. |
+| `51DEGREES_CLOUD_ENDPOINT` / `51DEGREES_RESOURCE_KEY` | `Browser51Did` | Handed to the demo under these names, the ones every language's demo reads first. |
+| `_51DEGREES_RESOURCE_KEY_51DID` | `Browser51Did` | Read where `51DEGREES_RESOURCE_KEY` is unset. The name CI sets, for a resource key carrying the 51Did product. |
 | `DEMO_URL` / `DEMO_LANG` / `DEMO_MODE` | `Browser51Did` | The demo to test, and `cloud` or `pipeline` pages. |
 
 A missing variable only fails the test that reads it.

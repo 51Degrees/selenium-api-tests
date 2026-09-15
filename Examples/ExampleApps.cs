@@ -121,7 +121,8 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
         /// routes, and reads its input data from the same two variables,
         /// 51DEGREES_RESOURCE_KEY and 51DEGREES_CLOUD_ENDPOINT, so a demo in
         /// another language is added here and nothing else in the suite
-        /// changes.
+        /// changes. The suite always hands the key over under the runtime
+        /// name, whichever of its two names the suite read it from.
         /// </summary>
         public static readonly IReadOnlyDictionary<string, ExampleDescriptor> Demos =
             new Dictionary<string, ExampleDescriptor>
@@ -131,7 +132,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     WorkingDir: Path.Combine(
                         RepoPaths.SiblingsRoot,
                         "device-detection-dotnet-examples",
-                        "Examples", "Cloud", "PreferenceManagement-Web"),
+                        "Examples", "Cloud", "pmp-web"),
                     Command: "dotnet",
                     Args: new[] { "run", "-c", "Release", "--no-launch-profile" },
                     ReadinessPath: "/cloud/common",
