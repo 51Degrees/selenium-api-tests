@@ -103,19 +103,25 @@ another name.
 
 1. Copy the demo's static files and templates, and fill the same
    placeholders from the same two variables.
-2. Serve every route under `/cloud/`, answering any host name, because the
-   tests load the pages as `site-a.localtest` and `site-b.localtest` on the
-   demo's port.
+2. Serve every route under `/cloud/`, and under `/pipeline/` once the
+   language's own web integration serves the client script, answering any
+   host name, because the tests load the pages as `site-a.localtest` and
+   `site-b.localtest` on the demo's port.
 3. Add an entry to `ExampleApps.Demos` saying how to launch it.
 4. Run the category with `DEMO_LANG` set to that entry.
 
-## What only the cloud mode proves today
+## What the pipeline mode proves today
 
-The `/pipeline/` mode needs the demo's own pipeline to render the user
-prompt block, which needs a 51Did element in that pipeline and a JavaScript
-builder carrying the new template. Until a demo serves those pages every
-run uses `/cloud/`. Two things will need attention when it does. The PMP
-recognises a client script tag only by the cloud's path, `/api/v4/<name>.js`,
-so on a pipeline page it may add the cloud's script beside the demo's own,
-and the tests about the PMP adding a script prove the cloud's script in
-either mode.
+The dotnet demo serves every route under `/pipeline/` as well, and
+`DEMO_MODE=pipeline` drives those pages. Their client script comes from the
+demo's own pipeline, which renders the user prompt block only with the
+pipeline packages that carry the new template, so with the released
+packages those pages show no prompt block and the tests that press it fail
+there. Two things differ in that mode. The PMP recognises a client script
+tag only by the cloud's path, `/api/v4/<name>.js`, so the demo's pipeline
+pages carry a tag that is not `async`, which has always run before the PMP
+looks for its object. And on a page with no client script tag the PMP adds
+the cloud's script, which posts to the cloud's `/api/v4/json`, whilst
+`Visitor.ClientRequests` looks on the pipeline's path, so
+`NoClientScriptTag_PlatformAddsItAndTheAnswerStillCreates` fails in that
+mode until the suite looks for the added script's own requests.
