@@ -1,26 +1,24 @@
 using FiftyOne.Pipeline.Cloud.Tests.Common;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace FiftyOne.Pipeline.Cloud.SeleniumTests
 {
     /// <summary>
-    /// Assembly-level setup. The cloud is always external; its URL comes from
-    /// the test configuration (TEST_CONFIG_FILE -> cloud_root_url).
+    /// Where the tests find the cloud under test.
     /// </summary>
-    [TestClass]
-    public class TestInitialiser
+    /// <remarks>
+    /// There is no assembly-level setup. The cloud URL used to be read once
+    /// for the whole run, which failed every test, including Contract tests
+    /// against an example that was already running, whenever CLOUD_ROOT_URL
+    /// was unset. It is now read by the tests that talk to the cloud
+    /// directly, and only they fail when it is missing.
+    /// </remarks>
+    public static class TestInitialiser
     {
         /// <summary>
-        /// Base URL of the cloud under test. Empty when no external cloud is
-        /// configured.
+        /// Base URL of the cloud under test, from CLOUD_ROOT_URL. Throws an
+        /// <see cref="System.InvalidOperationException"/> naming the variable
+        /// when it is not set.
         /// </summary>
-        public static string CloudServerUrl;
-
-        /// <summary>Reads the external cloud URL from the test configuration.</summary>
-        [AssemblyInitialize]
-        public static void TestInitialise(TestContext testContext)
-        {
-            CloudServerUrl = TestConfig.Instance().RootUrl;
-        }
+        public static string CloudServerUrl => TestConfig.Instance().RootUrl;
     }
 }

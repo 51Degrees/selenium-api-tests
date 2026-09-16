@@ -166,22 +166,12 @@ namespace FiftyOne.Pipeline.Cloud.Tests.Common.Helpers
         }
 
         /// <summary>
-        /// Get the actual Root Url used for testing.
-        /// If test environment is configured to use URL from configuration
-        /// file, then return the URL specified from configuration file. Else
-        /// return the AspNet Test Server URL being passed in.
+        /// The cloud URL to test against: CLOUD_ROOT_URL when it is set,
+        /// otherwise the URL passed in.
         /// </summary>
         public static string GetActualRootUrl(string testServerRootUrl)
         {
-            var config = TestConfig.Instance();
-            if (String.IsNullOrEmpty(config.RootUrl))
-            {
-                return testServerRootUrl;
-            }
-            else
-            {
-                return config.RootUrl;
-            }
+            return TestConfig.Instance().OptionalRootUrl ?? testServerRootUrl;
         }
     }
 }

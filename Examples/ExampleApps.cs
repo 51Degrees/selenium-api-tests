@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
+using FiftyOne.Pipeline.Cloud.Tests.Common;
 
 namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
 {
@@ -45,26 +47,80 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
         /// Returns false when no descriptor is registered for the selected language,
         /// letting the caller decide whether that should fail the test or skip it.
         /// </summary>
-        public static bool TryCreate(out IExampleApp app, out string skipReason)
+        public static bool TryCreate(out IExampleApp app, out string skipReason) =>
+            TryCreate(Environment.GetEnvironmentVariable, out app, out skipReason);
+
+        /// <summary>
+        /// As <see cref="TryCreate(out IExampleApp, out string)"/>, reading
+        /// the variables through <paramref name="getVariable"/> so the rules
+        /// can be tested without changing the process environment.
+        /// </summary>
+        public static bool TryCreate(
+            Func<string, string> getVariable,
+            out IExampleApp app,
+            out string skipReason)
         {
-            var external = Environment.GetEnvironmentVariable(ExampleUrlVar);
+            var external = getVariable(ExampleUrlVar);
             if (!string.IsNullOrEmpty(external))
             {
                 app = new ExternalExampleApp(new Uri(external));
                 skipReason = null;
                 return true;
             }
-            if (!Descriptors.TryGetValue(SelectedLang, out var descriptor))
+            var lang = getVariable(ExampleLangVar) ?? "dotnet";
+            if (!Descriptors.TryGetValue(lang, out var descriptor))
             {
                 app = null;
                 skipReason =
-                    $"No example descriptor registered for EXAMPLE_LANG='{SelectedLang}'. " +
+                    $"No example descriptor registered for EXAMPLE_LANG='{lang}'. " +
                     $"Known: {string.Join(", ", Descriptors.Keys)}.";
                 return false;
             }
             app = new SubprocessExampleApp(descriptor);
             skipReason = null;
             return true;
+        }
+
+        /// <summary>
+        /// Options for starting <paramref name="app"/>, read from the
+        /// environment.
+        /// </summary>
+        public static ExampleAppOptions BuildOptions(IExampleApp app, int port) =>
+            BuildOptions(app, port, TestConfig.Instance());
+
+        /// <summary>
+        /// Options for starting <paramref name="app"/>.
+        /// </summary>
+        /// <remarks>
+        /// An example that is already running (EXAMPLE_URL) was pointed at
+        /// its cloud and given its key by whoever started it, and
+        /// <see cref="ExternalExampleApp.StartAsync"/> ignores these options.
+        /// So CLOUD_ROOT_URL and PAID_RESOURCE_KEY are passed on when they
+        /// are set but are not required, which lets an on-premise example
+        /// run the Contract tests with neither. An example this suite
+        /// launches itself needs both, and a missing one throws an
+        /// <see cref="InvalidOperationException"/> naming the variable.
+        /// </remarks>
+        public static ExampleAppOptions BuildOptions(
+            IExampleApp app, int port, TestConfig config)
+        {
+            string rootUrl;
+            string resourceKey;
+            if (app is ExternalExampleApp)
+            {
+                rootUrl = config.OptionalRootUrl;
+                resourceKey = config.OptionalPaidResourceKey;
+            }
+            else
+            {
+                rootUrl = config.RootUrl;
+                resourceKey = config.PaidResourceKey;
+            }
+            return new ExampleAppOptions(
+                Port: port,
+                CloudEndpoint: rootUrl == null ? null : new Uri(rootUrl),
+                ResourceKey: resourceKey,
+                ExtraEnv: new Dictionary<string, string>());
         }
 
         /// <summary>Per-language launch descriptors.</summary>
@@ -144,11 +200,11 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                         "device-detection-python",
                         "fiftyone_devicedetection_examples"),
                     // the venv's python (absolute path)
-                    Command: Path.Combine(
+                    Command: VenvPython(Path.Combine(
                         RepoPaths.SiblingsRoot,
                         "device-detection-python",
                         "fiftyone_devicedetection_examples",
-                        ".venv", "bin", "python"),
+                        ".venv")),
                     Args: new[] { "-m", "fiftyone_devicedetection_examples.cloud.gettingstarted_web" },
                     ReadinessPath: "/",
                     StartupTimeoutSeconds: 60,
@@ -159,7 +215,16 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                         ["resource_key"] = o.ResourceKey,
                     },
                     BuildCommand: "bash",
-                    BuildArgs: new[] { "-c", "python3 -m venv .venv && .venv/bin/pip install -e ." },
+                    // a Windows python install may have no working "python3",
+                    // so fall back to "python" to create the venv, then use
+                    // the venv's own interpreter, whose path differs by OS
+                    BuildArgs: new[]
+                    {
+                        "-c",
+                        "(python3 -m venv .venv || python -m venv .venv) && " +
+                        VenvPython(".venv").Replace(Path.DirectorySeparatorChar, '/') +
+                        " -m pip install -e .",
+                    },
                     BuildTimeoutSeconds: 600,
                     JsonEndpointPath: "/json"),
                 ["php"] = new ExampleDescriptor(
@@ -223,5 +288,15 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     },
                     BuildTimeoutSeconds: 900),
             };
+
+        /// <summary>
+        /// Path of the python interpreter inside the virtual environment at
+        /// <paramref name="venv"/>. A Windows virtual environment keeps it in
+        /// Scripts/python.exe, everywhere else it is bin/python.
+        /// </summary>
+        public static string VenvPython(string venv) =>
+            RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                ? Path.Combine(venv, "Scripts", "python.exe")
+                : Path.Combine(venv, "bin", "python");
     }
 }
