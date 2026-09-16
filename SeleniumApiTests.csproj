@@ -4,7 +4,17 @@
     <TargetFramework>net10.0</TargetFramework>
     <IsPackable>false</IsPackable>
     <Platforms>x64;ARM64</Platforms>
+    <RunSettingsFilePath>$(MSBuildProjectDirectory)/test.runsettings</RunSettingsFilePath>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The logger is its own assembly because the test platform only looks
+         for a logger in one whose name ends with ".TestLogger". Building it
+         next to the tests is what makes it discoverable. -->
+    <Compile Remove="TestLogger/**" />
+    <None Remove="TestLogger/**" />
+    <ProjectReference Include="TestLogger/FiftyOne.SeleniumTests.TestLogger.csproj" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.5.1" />

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Settings the test project points at, so they apply to a plain
+  "dotnet test" with no extra command line arguments.
+
+  The skipreasons logger prints why each skipped test was skipped. Without
+  it the console logger prints the name of a skipped test and nothing else.
+-->
+<RunSettings>
+  <LoggerRunSettings>
+    <Loggers>
+      <Logger friendlyName="skipreasons" enabled="True" />
+    </Loggers>
+  </LoggerRunSettings>
+</RunSettings>
