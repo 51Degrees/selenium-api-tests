@@ -39,39 +39,82 @@ public sealed class Browser51DidTestAttribute : TestMethodAttribute
     {
         var results = await base.ExecuteAsync(testMethod)
             .ConfigureAwait(false);
-        foreach (var result in results)
+        for (var index = 0; index < results.Length; index++)
         {
-            Redact(result);
+            results[index] = Redacted(results[index]);
         }
         return results;
     }
 
-    private static void Redact(TestResult result)
-    {
-        result.LogOutput = RedactedOrNull(result.LogOutput);
-        result.LogError = RedactedOrNull(result.LogError);
-        result.DebugTrace = RedactedOrNull(result.DebugTrace);
-        result.TestContextMessages = RedactedOrNull(result.TestContextMessages);
-        var failure = result.TestFailureException;
-        if (failure is null || string.IsNullOrEmpty(Harness.Resource))
+    /// <summary>
+    /// A fresh result carrying everything the runner reports, with the
+    /// resource key taken out of it.
+    /// <para>
+    /// A new result rather than an edit of the one MSTest built, because
+    /// setting <see cref="TestResult.TestFailureException"/> on a result
+    /// that already has one does not replace it: MSTest keeps the first
+    /// and reports an AggregateException of both, and it has already put
+    /// the first one's message into a member of its own that this assembly
+    /// cannot set. Redacting by assignment therefore printed the key and
+    /// the redaction of it side by side — "One or more errors occurred.
+    /// (the key) (the redaction)" — and hid nothing. A result built here
+    /// has no first exception and no such member, so the runner reports
+    /// what is set below and nothing else. RedactionTests holds this.
+    /// </para>
+    /// </summary>
+    private static TestResult Redacted(TestResult result)
+        => Redacted(result, Harness.Resource);
+
+    /// <summary>
+    /// The same, against a resource key given here rather than the
+    /// configured one, so the redaction can be tested.
+    /// </summary>
+    internal static TestResult Redacted(
+        TestResult result, string? resource)
+        => new()
         {
-            return;
+            DisplayName = RedactedOrNull(result.DisplayName, resource),
+            Outcome = result.Outcome,
+            Duration = result.Duration,
+            ExecutionId = result.ExecutionId,
+            ParentExecId = result.ParentExecId,
+            ResultFiles = result.ResultFiles,
+            LogOutput = RedactedOrNull(result.LogOutput, resource),
+            LogError = RedactedOrNull(result.LogError, resource),
+            DebugTrace = RedactedOrNull(result.DebugTrace, resource),
+            TestContextMessages =
+                RedactedOrNull(result.TestContextMessages, resource),
+            TestFailureException = RedactedFailure(result, resource),
+        };
+
+    /// <summary>
+    /// The failure to report, redacted where it names the resource key.
+    /// The original is kept where it does not, so a reader still sees the
+    /// exception the test actually threw.
+    /// </summary>
+    private static Exception? RedactedFailure(
+        TestResult result, string? resource)
+    {
+        var failure = result.TestFailureException;
+        if (failure is null || string.IsNullOrEmpty(resource))
+        {
+            return failure;
         }
         var whole = failure.ToString();
-        if (whole.Contains(Harness.Resource, StringComparison.Ordinal) == false)
+        if (whole.Contains(resource, StringComparison.Ordinal) == false)
         {
-            return;
+            return failure;
         }
         // The exception cannot be edited, so a new one carries the redacted
         // text. Its own stack trace would point here, so the original one is
         // kept in the message, where the line that failed can still be read.
         var text = Harness.Redacted(
             $"{InnermostMessage(failure)}\nWhere it failed, kept because "
-            + $"the message was redacted:\n{whole}");
-        result.TestFailureException =
-            result.Outcome == UnitTestOutcome.Inconclusive
-                ? new AssertInconclusiveException(text)
-                : new AssertFailedException(text);
+            + $"the message was redacted:\n{whole}",
+            resource);
+        return result.Outcome == UnitTestOutcome.Inconclusive
+            ? new AssertInconclusiveException(text)
+            : new AssertFailedException(text);
     }
 
     private static string InnermostMessage(Exception failure)
@@ -84,8 +127,8 @@ public sealed class Browser51DidTestAttribute : TestMethodAttribute
         return inner.Message;
     }
 
-    private static string? RedactedOrNull(string? text)
-        => text is null ? null : Harness.Redacted(text);
+    private static string? RedactedOrNull(string? text, string? resource)
+        => text is null ? null : Harness.Redacted(text, resource);
 }
 
 /// <summary>

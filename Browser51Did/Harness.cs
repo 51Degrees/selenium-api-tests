@@ -593,18 +593,46 @@ public static class Harness
     /// never be written down anywhere.
     /// </summary>
     public static string Redacted(string text)
-        => string.IsNullOrEmpty(Resource)
-            ? text
-            : text.Replace(Resource, "<resource key>", StringComparison.Ordinal);
+        => Redacted(text, Resource);
 
-    /// <summary>One line of the script either side of the match.</summary>
+    /// <summary>
+    /// The same, against a resource key given here rather than the
+    /// configured one. The configured one is read once when this class is
+    /// first touched, so a test cannot set it; it passes its own instead.
+    /// </summary>
+    internal static string Redacted(string text, string? resource)
+        => string.IsNullOrEmpty(resource)
+            ? text
+            : text.Replace(
+                resource, "<resource key>", StringComparison.Ordinal);
+
+    /// <summary>
+    /// One line of the script either side of the match, with the resource
+    /// key taken out of it.
+    /// <para>
+    /// The body this slices is the cloud-rendered client script, which
+    /// carries the resource key in the addresses it calls back on, so a
+    /// slice of it can contain the key wherever the match happens to fall.
+    /// The redaction is done here rather than at the call site because the
+    /// caller cannot tell from the returned text whether it needs it.
+    /// </para>
+    /// </summary>
     private static string Around(string body, int at)
+        => Around(body, at, Resource);
+
+    /// <summary>
+    /// The same, against a resource key given here rather than the
+    /// configured one, so the redaction can be tested.
+    /// </summary>
+    internal static string Around(string body, int at, string? resource)
     {
         var from = Math.Max(0, at - 40);
         var to = Math.Min(body.Length, at + 120);
-        return body.Substring(from, to - from)
-            .Replace("\r", " ", StringComparison.Ordinal)
-            .Replace("\n", " ", StringComparison.Ordinal);
+        return Redacted(
+            body.Substring(from, to - from)
+                .Replace("\r", " ", StringComparison.Ordinal)
+                .Replace("\n", " ", StringComparison.Ordinal),
+            resource);
     }
 
     #region Browsers
