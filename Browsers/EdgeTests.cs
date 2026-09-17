@@ -39,22 +39,13 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Browsers
             var options = new EdgeOptions();
             options.AcceptInsecureCertificates = true;
             options.AddArgument("--headless");
-            if (ExternalSeleniumHelper.IsExternalSelenium(out var seleniumUrl))
+            try
             {
-                ExternalSeleniumHelper.AddExternalSeleniumArguments(options);
-                s_driver = new RemoteWebDriver(new Uri(seleniumUrl), options);
+                s_driver = BrowserDrivers.CreateEdge(options);
             }
-            else
+            catch (WebDriverException e)
             {
-                try
-                {
-                    s_driver = new EdgeDriver(options);
-                }
-                catch (WebDriverException)
-                {
-                    Assert.Inconclusive("Could not create an EdgeDriver, check " +
-                        "that the MS edge driver is installed");
-                }
+                Assert.Inconclusive(e.Message);
             }
         }
 

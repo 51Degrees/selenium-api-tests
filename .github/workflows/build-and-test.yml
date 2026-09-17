@@ -1,5 +1,11 @@
-# Builds the suite and runs the tests that need no browser, no cloud and no
-# keys, so a change here is checked before a language repository picks it up.
+# Builds the suite and runs it, so a change here is checked before a language
+# repository picks it up.
+#
+# Two jobs, because they answer different questions. The first runs the tests
+# that need no browser, no cloud and no keys. The second starts a real browser
+# on each runner the language repositories use, including the ARM64 Linux ones,
+# and fails when one will not start, which is the fault the second job exists
+# to catch.
 name: Build and test
 
 on:
@@ -28,4 +34,41 @@ jobs:
       - name: Test
         run: >
           dotnet test -c Release --no-build
-          --filter "TestCategory!=Contract&TestCategory!=CloudInternal"
+          --filter "TestCategory!=Contract&TestCategory!=CloudInternal&TestCategory!=Browser"
+
+  browsers:
+    name: Browsers on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # The ARM64 images are here because a browser suite that could not
+        # start a browser on them was reported as passing for as long as nobody
+        # read the log. ubuntu-22.04-arm is the image the language repositories
+        # run their ARM jobs on.
+        os: [ubuntu-latest, ubuntu-22.04-arm, ubuntu-24.04-arm]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # Say what the runner brought, so a later change of image is readable
+      # from the log rather than guessed at.
+      - name: What this runner provides
+        run: |
+          echo "arch: $(uname -m)"
+          echo "CHROMEWEBDRIVER: ${CHROMEWEBDRIVER:-<unset>}"
+          echo "GECKOWEBDRIVER: ${GECKOWEBDRIVER:-<unset>}"
+          echo "EDGEWEBDRIVER: ${EDGEWEBDRIVER:-<unset>}"
+          for exe in google-chrome chromium chromedriver firefox geckodriver \
+                     microsoft-edge msedgedriver; do
+            echo "$exe: $(command -v $exe || echo '<not on the path>')"
+          done
+
+      - name: Build
+        run: dotnet build -c Release
+
+      - name: Start a browser
+        run: dotnet test -c Release --no-build --filter "TestCategory=Browser"

@@ -39,22 +39,13 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Browsers
             var options = new ChromeOptions();
             options.AcceptInsecureCertificates = true;
             options.AddArgument("--headless");
-            if (ExternalSeleniumHelper.IsExternalSelenium(out var seleniumUrl))
+            try
             {
-                ExternalSeleniumHelper.AddExternalSeleniumArguments(options);
-                s_driver = new RemoteWebDriver(new Uri(seleniumUrl), options);
+                s_driver = BrowserDrivers.CreateChrome(options);
             }
-            else
+            catch (WebDriverException e)
             {
-                try
-                {
-                    s_driver = new ChromeDriver(options);
-                }
-                catch (WebDriverException)
-                {
-                    Assert.Inconclusive("Could not create a ChromeDriver, check " +
-                        "that the Chromium driver is installed");
-                }
+                Assert.Inconclusive(e.Message);
             }
         }
 
