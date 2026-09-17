@@ -14,8 +14,8 @@ using OpenQA.Selenium.Support.UI;
 namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
 {
     /// <summary>
-    /// Loads a real example app the way an ordinary visitor would — plain
-    /// desktop Chrome, no mobile emulation and no header-injecting proxy — and
+    /// Loads a real example app the way an ordinary visitor would, with plain
+    /// desktop Chrome, no mobile emulation and no header-injecting proxy, and
     /// checks that the page the example renders server-side actually contains a
     /// real device-detection result. This is the "does the example work at all"
     /// counterpart to <see cref="ExampleClientSideOverrideTests"/>, which only

@@ -17,7 +17,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
         public ExternalExampleApp(Uri baseUrl) => BaseUrl = baseUrl;
 
         /// <summary>
-        /// No-op — the example is already running. Whoever started it must point it at
+        /// No-op, as the example is already running. Whoever started it must point it at
         /// the test's cloud and resource key; the options here are not applied.
         /// </summary>
         public Task StartAsync(ExampleAppOptions options, CancellationToken ct) => Task.CompletedTask;
