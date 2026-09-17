@@ -1,6 +1,5 @@
 using FiftyOne.Pipeline.Cloud.SeleniumTests.Examples;
 using FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers;
-using FiftyOne.Pipeline.Cloud.Tests.Common;
 using FiftyOne.Pipeline.Cloud.Tests.Common.Helpers;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using OpenQA.Selenium;
@@ -41,31 +40,20 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.BrowserCache
         [ClassInitialize]
         public static void ClassInit(TestContext context)
         {
-            string rootUrl;
-            string resourceKey;
-            try
-            {
-                rootUrl = TestConfig.Instance().RootUrl;
-                resourceKey = TestConfig.Instance().PaidResourceKey;
-            }
-            catch (InvalidOperationException ex)
-            {
-                Assert.Inconclusive(ex.Message);
-                return;
-            }
-
             if (!ExampleApps.TryCreate(out _app, out var skipReason))
             {
                 Assert.Inconclusive(skipReason);
                 return;
             }
 
+            // An example that is already running (EXAMPLE_URL) was pointed at
+            // its cloud and given its key by whoever started it, so neither is
+            // required here. One this suite launches needs both, and a missing
+            // one fails this class naming the variable.
+            var options = ExampleApps.BuildOptions(
+                _app, TestHelpers.GetRandomUnusedPort());
+
             _appTokenSource = new CancellationTokenSource();
-            var options = new ExampleAppOptions(
-                TestHelpers.GetRandomUnusedPort(),
-                new Uri(rootUrl),
-                resourceKey,
-                new Dictionary<string, string>());
             _app.StartAsync(options, _appTokenSource.Token)
                 .GetAwaiter().GetResult();
         }

@@ -1,12 +1,10 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FiftyOne.Pipeline.Cloud.SeleniumTests.Examples;
 using FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers;
 using FiftyOne.Pipeline.Cloud.Tests.Common.Helpers;
-using FiftyOne.Pipeline.Cloud.Tests.Common.TestElements;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
@@ -16,8 +14,8 @@ using OpenQA.Selenium.Support.UI;
 namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
 {
     /// <summary>
-    /// Loads a real example app the way an ordinary visitor would — plain
-    /// desktop Chrome, no mobile emulation and no header-injecting proxy — and
+    /// Loads a real example app the way an ordinary visitor would, with plain
+    /// desktop Chrome, no mobile emulation and no header-injecting proxy, and
     /// checks that the page the example renders server-side actually contains a
     /// real device-detection result. This is the "does the example work at all"
     /// counterpart to <see cref="ExampleClientSideOverrideTests"/>, which only
@@ -68,21 +66,13 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
             }
             _example = app;
 
-            var cloudEndpoint = TestHelpers.GetActualRootUrl(TestInitialiser.CloudServerUrl);
-            if (string.IsNullOrEmpty(cloudEndpoint))
-            {
-                Assert.Inconclusive(
-                    "No external cloud configured. Set CLOUD_ROOT_URL " +
-                    "(e.g. https://cloud.51degrees.com/).");
-                return;
-            }
-
+            // An example that is already running (EXAMPLE_URL) was pointed at
+            // its cloud and given its key by whoever started it, so neither is
+            // required here. One this suite launches needs both, and a missing
+            // one fails this test naming the variable.
             await _example.StartAsync(
-                new ExampleAppOptions(
-                    Port: TestHelpers.GetRandomUnusedPort(),
-                    CloudEndpoint: new Uri(cloudEndpoint),
-                    ResourceKey: TestResourceKey.PaidResourceKey,
-                    ExtraEnv: new Dictionary<string, string>()),
+                ExampleApps.BuildOptions(
+                    _example, TestHelpers.GetRandomUnusedPort()),
                 CancellationToken.None);
         }
 
@@ -122,9 +112,10 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
                 "example did not render a real detection result server-side");
 
             // The device id is the compact form of the whole result, so check it
-            // where it is rendered. java and rust do not render one server-side,
-            // and that is a property of those pages rather than of detection, so
-            // it is checked where present rather than demanded everywhere.
+            // where it is rendered. The java example renders no device id
+            // server-side, and that is a property of that page rather than of
+            // detection, so the id is checked where present rather than
+            // demanded everywhere.
             var deviceId = ValueOfCellAfter(_driver, DeviceIdCellInSameTable);
             if (deviceId != null)
             {
