@@ -38,22 +38,13 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Browsers
             var options = new FirefoxOptions();
             options.AcceptInsecureCertificates = true;
             options.AddArgument("--headless");
-            if (ExternalSeleniumHelper.IsExternalSelenium(out var seleniumUrl))
+            try
             {
-                ExternalSeleniumHelper.AddExternalSeleniumArguments(options);
-                s_driver = new RemoteWebDriver(new Uri(seleniumUrl), options);
+                s_driver = BrowserDrivers.CreateFirefox(options);
             }
-            else
+            catch (WebDriverException e)
             {
-                try
-                {
-                    s_driver = new FirefoxDriver(options);
-                }
-                catch (WebDriverException)
-                {
-                    Assert.Inconclusive("Could not create a gecko driver, check " +
-                        "that the gecko driver is installed");
-                }
+                Assert.Inconclusive(e.Message);
             }
         }
 

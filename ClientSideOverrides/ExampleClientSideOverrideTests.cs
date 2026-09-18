@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using FiftyOne.Pipeline.Cloud.SeleniumTests.Examples;
 using FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers;
 using FiftyOne.Pipeline.Cloud.Tests.Common.Helpers;
-using FiftyOne.Pipeline.Cloud.Tests.Common.TestElements;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
@@ -40,21 +39,13 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
             }
             _example = app;
 
-            var cloudEndpoint = TestHelpers.GetActualRootUrl(TestInitialiser.CloudServerUrl);
-            if (string.IsNullOrEmpty(cloudEndpoint))
-            {
-                Assert.Inconclusive(
-                    "No external cloud configured. Set CLOUD_ROOT_URL " +
-                    "(e.g. https://cloud.51degrees.com/).");
-                return;
-            }
-
+            // An example that is already running (EXAMPLE_URL) was pointed at
+            // its cloud and given its key by whoever started it, so neither is
+            // required here. One this suite launches needs both, and a missing
+            // one fails this test naming the variable.
             await _example.StartAsync(
-                new ExampleAppOptions(
-                    Port: TestHelpers.GetRandomUnusedPort(),
-                    CloudEndpoint: new Uri(cloudEndpoint),
-                    ResourceKey: TestResourceKey.PaidResourceKey,
-                    ExtraEnv: new Dictionary<string, string>()),
+                ExampleApps.BuildOptions(
+                    _example, TestHelpers.GetRandomUnusedPort()),
                 CancellationToken.None);
 
             // Front the example with a proxy that disables UA client hints, so they
@@ -96,15 +87,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
                 UserAgent = userAgent,
             });
 
-            if (ExternalSeleniumHelper.IsExternalSelenium(out var seleniumUrl))
-            {
-                ExternalSeleniumHelper.AddExternalSeleniumArguments(chromeOptions);
-                _driver = new RemoteWebDriver(new Uri(seleniumUrl), chromeOptions);
-            }
-            else
-            {
-                _driver = new ChromeDriver(chromeOptions);
-            }
+            _driver = BrowserDrivers.CreateChrome(chromeOptions);
 
             _driver.Navigate().GoToUrl(_proxyUrl);
             IJavaScriptExecutor js = _driver;

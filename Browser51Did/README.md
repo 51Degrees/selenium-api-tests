@@ -5,10 +5,11 @@ that a 51Did is created only after every other piece of data is complete and
 only from an answer the visitor actually gave, with the 51Degrees Preference
 Management Platform (PMP) and the client script on a publisher's page.
 
-Six more, in
-[RedactionTests.cs](RedactionTests.cs), prove that the resource key cannot
-reach a test report. They need no cloud, no demo and no browser, so they run
-whenever the category does.
+Nine more need no cloud, no demo and no browser, so they run whenever the
+category does. Six, in [RedactionTests.cs](RedactionTests.cs), prove that the
+resource key cannot reach a test report, and three, in
+[DemoSettingsTests.cs](DemoSettingsTests.cs), which of its two names the key
+is read from.
 
 They drive a **demo**, a small web app that serves every page the tests
 load. The dotnet demo is `Examples/Cloud/pmp-web` in
@@ -97,7 +98,7 @@ digit, which is also why the name continuous integration sets starts with an
 underscore. In PowerShell write `${env:51DEGREES_RESOURCE_KEY} = '...'`.
 
 With the endpoint or both resource key names unset every test that needs a
-browser reports inconclusive with the reason, and the six redaction tests
+browser reports inconclusive with the reason, and the nine that need none
 still run. A resource key that cannot create reports inconclusive with the
 cloud's own refusal, and so does a cloud that will not hold a shared choice.
 The shared choice needs the browser to keep the cloud's `Secure`

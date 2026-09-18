@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading;
 using FiftyOne.Pipeline.Cloud.Tests.Common.TestElements;
+using FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers;
 
 namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
 {
@@ -88,7 +89,9 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
 
             chromeOptions.SetLoggingPreference(LogType.Browser, LogLevel.All);
 
-            driver = new ChromeDriver(chromeOptions);
+            // Cast because the CDP command below is Chrome's own. A
+            // remote Selenium is not supported by this test.
+            driver = (ChromeDriver)BrowserDrivers.CreateChrome(chromeOptions);
 
             // Allow geo-location on the test client website.
             driver.ExecuteCdpCommand("Browser.grantPermissions",

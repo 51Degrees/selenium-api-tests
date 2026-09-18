@@ -4,7 +4,17 @@
     <TargetFramework>net10.0</TargetFramework>
     <IsPackable>false</IsPackable>
     <Platforms>x64;ARM64</Platforms>
+    <RunSettingsFilePath>$(MSBuildProjectDirectory)/test.runsettings</RunSettingsFilePath>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The logger is its own assembly because the test platform only looks
+         for a logger in one whose name ends with ".TestLogger". Building it
+         next to the tests is what makes it discoverable. -->
+    <Compile Remove="TestLogger/**" />
+    <None Remove="TestLogger/**" />
+    <ProjectReference Include="TestLogger/FiftyOne.SeleniumTests.TestLogger.csproj" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.5.1" />
@@ -14,7 +24,11 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Selenium.WebDriver" Version="4.43.0" />
+    <!-- 4.49.0 is the first version whose Selenium Manager ships an ARM64
+         Linux build. Earlier versions carry only an x64 one, under a
+         folder named for Linux with no architecture in the name, so on an
+         ARM64 runner it is picked and cannot start. -->
+    <PackageReference Include="Selenium.WebDriver" Version="4.49.0" />
     <PackageReference Include="FiftyOne.Common.TestHelpers" Version="5.1.7" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="FiftyOne.Pipeline.JavaScriptBuilder" Version="4.5.47" />
