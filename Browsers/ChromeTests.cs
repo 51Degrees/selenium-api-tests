@@ -4,7 +4,6 @@ using FiftyOne.Pipeline.Cloud.Tests.Common.Helpers;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
-using OpenQA.Selenium.Remote;
 using System.Linq;
 using System.Net;
 using System.Threading;
@@ -36,25 +35,17 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Browsers
             s_cts = new CancellationTokenSource();
             s_clientServer = TestHelpers.SimpleListener(s_clientServerUrl, s_cts.Token);
 
-            var options = new ChromeOptions();
-            options.AcceptInsecureCertificates = true;
-            options.AddArgument("--headless");
-            if (ExternalSeleniumHelper.IsExternalSelenium(out var seleniumUrl))
+            try
             {
-                ExternalSeleniumHelper.AddExternalSeleniumArguments(options);
-                s_driver = new RemoteWebDriver(new Uri(seleniumUrl), options);
+                s_driver = WebDriverFactory.Create(new ChromeOptions());
             }
-            else
+            // A missing browser on a developer machine is not a test failure. A
+            // grid that will not hand one out is, so do not swallow that.
+            catch (WebDriverException) when (
+                ExternalSeleniumHelper.IsExternalSelenium(out _) == false)
             {
-                try
-                {
-                    s_driver = new ChromeDriver(options);
-                }
-                catch (WebDriverException)
-                {
-                    Assert.Inconclusive("Could not create a ChromeDriver, check " +
-                        "that the Chromium driver is installed");
-                }
+                Assert.Inconclusive("Could not create a ChromeDriver, check " +
+                    "that the Chromium driver is installed");
             }
         }
 

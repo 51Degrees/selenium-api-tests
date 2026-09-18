@@ -4,7 +4,6 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Chromium;
-using OpenQA.Selenium.Remote;
 using OpenQA.Selenium.Support.UI;
 using System;
 using System.Collections.Generic;
@@ -112,8 +111,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
             string expectedHardwareId)
         {
             var chromeOptions = new ChromeOptions();
-            chromeOptions.AcceptInsecureCertificates = true;
-            chromeOptions.AddArgument("--headless");
             chromeOptions.EnableMobileEmulation(
                 new ChromiumMobileEmulationDeviceSettings
                 {
@@ -123,15 +120,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
                     UserAgent = userAgent,
                 });
 
-            if (ExternalSeleniumHelper.IsExternalSelenium(out var seleniumUrl))
-            {
-                ExternalSeleniumHelper.AddExternalSeleniumArguments(chromeOptions);
-                driver = new RemoteWebDriver(new Uri(seleniumUrl), chromeOptions);
-            }
-            else
-            {
-                driver = new ChromeDriver(chromeOptions);
-            }
+            driver = WebDriverFactory.Create(chromeOptions);
             driver.Manage().Cookies.DeleteAllCookies();
 
             driver.Navigate().GoToUrl(ClientServerUrl);
