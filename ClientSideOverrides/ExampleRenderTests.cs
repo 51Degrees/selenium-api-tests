@@ -89,15 +89,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
             chromeOptions.AddArgument("--headless");
             chromeOptions.AddArgument($"--user-agent={DesktopChromeUserAgent}");
 
-            if (ExternalSeleniumHelper.IsExternalSelenium(out var seleniumUrl))
-            {
-                ExternalSeleniumHelper.AddExternalSeleniumArguments(chromeOptions);
-                _driver = new RemoteWebDriver(new Uri(seleniumUrl), chromeOptions);
-            }
-            else
-            {
-                _driver = new ChromeDriver(chromeOptions);
-            }
+            _driver = BrowserDrivers.CreateChrome(chromeOptions);
 
             _driver.Navigate().GoToUrl(_example.BaseUrl);
 

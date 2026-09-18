@@ -15,6 +15,7 @@ sibling directory and run it at their integration-test step.
 |---|---|---|
 | `Contract` | An example app serves `51Degrees.core.js`, client-side evidence flows back, and the server-rendered page shows a real detection result. | Cloud CI (per example, vs `:8080`) **and** every API CI (vs the public cloud). |
 | `CloudInternal` | Cloud response behaviour through a browser: cache reuse, COEP/CORP headers, third-party cookies, client-side overrides, and the per-browser JS endpoints. | Cloud CI only (vs `:8080`). |
+| `Browser` | That a browser starts at all and runs the script on a page served from the test process. No cloud, no key, no example. | This repository's own CI, on every runner image it uses. |
 
 Select a subset with `--filter TestCategory=Contract` or
 `--filter TestCategory=CloudInternal`.
@@ -29,8 +30,10 @@ Select a subset with `--filter TestCategory=Contract` or
   that is already running was pointed at its data by whoever started it, so with
   `EXAMPLE_URL` set the suite needs neither `CLOUD_ROOT_URL` nor
   `PAID_RESOURCE_KEY`, which is what lets an on-premise example run `Contract`.
-- **Browser** - by default a local Chrome driver is used. Set `SELENIUM_URL` to use
-  a Selenium grid instead (CI uses a standalone grid).
+- **Browser** - a driver the machine already provides is used first, named by
+  `CHROMEWEBDRIVER`, `GECKOWEBDRIVER` or `EDGEWEBDRIVER` or found on the path.
+  When the machine provides none, Selenium Manager fetches one. Set
+  `SELENIUM_URL` to drive a browser on a Selenium grid instead.
 
 ## Configuration
 
@@ -43,7 +46,9 @@ and no keys are committed.
 | `PAID_RESOURCE_KEY` | `CloudInternal`, and `Contract` when the suite launches the example | Resource key used by the tests. |
 | `FREE_RESOURCE_KEY` | `CloudInternal` | Free resource key for the JS-endpoint tests. |
 | `ENTERPRISE_V4_LICENSE` | `CloudInternal` | License passed to the JS endpoint to unlock paid properties. |
-| `SELENIUM_URL` | optional | Selenium grid URL, omit for a local Chrome driver. |
+| `SELENIUM_URL` | optional | Selenium grid URL, omit to drive a browser on this machine. |
+| `CHROMEWEBDRIVER` / `GECKOWEBDRIVER` / `EDGEWEBDRIVER` | optional | A driver, or the directory holding one. GitHub's Linux runner images set these. |
+| `CHROME_BIN` / `FIREFOX_BIN` / `EDGE_BIN` | optional | The browser binary to drive, when it is not on the path. |
 | `EXAMPLE_URL` / `EXAMPLE_LANG` | `Contract` | The example app to test (CI / local). |
 
 A missing variable only fails the tests that read it, and the failure names the
@@ -98,9 +103,30 @@ dotnet test --filter TestCategory=CloudInternal
 
 ## This repository's own CI
 
-The "Build and test" workflow builds the suite and runs the tests that need no
-browser, no cloud and no keys, on every push and pull request. It is what
-proves a change here before any language repository picks it up.
+The "Build and test" workflow builds the suite on every push and pull request,
+and runs it in two jobs. The first runs the tests that need no browser, no
+cloud and no keys. The second starts Chrome and Firefox on `ubuntu-latest`,
+`ubuntu-22.04-arm` and `ubuntu-24.04-arm`, and prints what each runner
+provides before it does. Together they prove a change here before any language
+repository picks it up.
+
+## Browsers by architecture
+
+GitHub's ARM64 Linux runner images carry Firefox and geckodriver and set
+`GECKOWEBDRIVER`, but no Chrome, no Chromium, no ChromeDriver and no Edge,
+and they leave `CHROMEWEBDRIVER` and `EDGEWEBDRIVER` unset. The x64 images
+carry all of them.
+
+Chrome still runs on ARM64, because Selenium Manager fetches the Chrome for
+Testing `linux-arm64` build and a matching driver. That needs
+Selenium.WebDriver 4.49.0 or later, which is the first version whose Selenium
+Manager ships an ARM64 Linux build. Earlier versions carry only an x64 one,
+under a folder named for Linux with no architecture in the name, so on an
+ARM64 runner it is picked, cannot start, and every browser test dies in a few
+milliseconds with "Exec format error". Do not downgrade the package.
+
+Edge cannot run on ARM64 Linux at all. Microsoft publishes neither the browser
+nor the driver for it, so the Edge tests say so and skip.
 
 ## CI integration
 

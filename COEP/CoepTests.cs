@@ -105,15 +105,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.COEP
             options.AcceptInsecureCertificates = true;
             options.AddArgument("--headless");
             options.SetLoggingPreference(LogType.Browser, LogLevel.All);
-            if (ExternalSeleniumHelper.IsExternalSelenium(out var seleniumUrl))
-            {
-                ExternalSeleniumHelper.AddExternalSeleniumArguments(options);
-                driver = new RemoteWebDriver(new Uri(seleniumUrl), options);
-            }
-            else
-            {
-                driver = new ChromeDriver(options);
-            }
+            driver = BrowserDrivers.CreateChrome(options);
         }
 
         /// <summary>

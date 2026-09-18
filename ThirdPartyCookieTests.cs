@@ -82,12 +82,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests
         /// </summary>
         private IWebDriver CreateDriver(ChromeOptions options)
         {
-            if (ExternalSeleniumHelper.IsExternalSelenium(out var seleniumUrl))
-            {
-                ExternalSeleniumHelper.AddExternalSeleniumArguments(options);
-                return new RemoteWebDriver(new Uri(seleniumUrl), options);
-            }
-            return new ChromeDriver(options);
+            return BrowserDrivers.CreateChrome(options);
         }
 
         /// <summary>

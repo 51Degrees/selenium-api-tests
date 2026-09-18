@@ -123,15 +123,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
                     UserAgent = userAgent,
                 });
 
-            if (ExternalSeleniumHelper.IsExternalSelenium(out var seleniumUrl))
-            {
-                ExternalSeleniumHelper.AddExternalSeleniumArguments(chromeOptions);
-                driver = new RemoteWebDriver(new Uri(seleniumUrl), chromeOptions);
-            }
-            else
-            {
-                driver = new ChromeDriver(chromeOptions);
-            }
+            driver = BrowserDrivers.CreateChrome(chromeOptions);
             driver.Manage().Cookies.DeleteAllCookies();
 
             driver.Navigate().GoToUrl(ClientServerUrl);

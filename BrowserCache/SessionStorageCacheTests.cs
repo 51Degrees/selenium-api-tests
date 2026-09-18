@@ -138,15 +138,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.BrowserCache
             options.AcceptInsecureCertificates = true;
             options.AddArgument("--headless");
 
-            if (ExternalSeleniumHelper.IsExternalSelenium(out var seleniumUrl))
-            {
-                ExternalSeleniumHelper.AddExternalSeleniumArguments(options);
-                driver = new RemoteWebDriver(new Uri(seleniumUrl), options);
-            }
-            else
-            {
-                driver = new ChromeDriver(options);
-            }
+            driver = BrowserDrivers.CreateChrome(options);
 
             RunTest(driver, enableCookies);
         }
@@ -163,15 +155,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.BrowserCache
             options.AcceptInsecureCertificates = true;
             options.AddArgument("--headless");
 
-            if (ExternalSeleniumHelper.IsExternalSelenium(out var seleniumUrl))
-            {
-                ExternalSeleniumHelper.AddExternalSeleniumArguments(options);
-                driver = new RemoteWebDriver(new Uri(seleniumUrl), options);
-            }
-            else
-            {
-                driver = new FirefoxDriver(options);
-            }
+            driver = BrowserDrivers.CreateFirefox(options);
 
             RunTest(driver, enableCookies);
         }
