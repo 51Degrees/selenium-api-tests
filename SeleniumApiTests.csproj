@@ -32,6 +32,15 @@
     <PackageReference Include="FiftyOne.Common.TestHelpers" Version="5.1.7" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="FiftyOne.Pipeline.JavaScriptBuilder" Version="4.5.47" />
+    <!--
+      The published 51Did parser, so the browser tests in Browser51Did read an
+      identifier exactly the way a customer does. It reports whether the usage
+      was stated by the caller or decoded from a framework string, which is
+      the flag those tests exist to show. The package carries the envelope
+      reader inside it and declares no dependencies, so it brings nothing
+      else in.
+    -->
+    <PackageReference Include="FiftyOne.Did" Version="4.5.104" />
   </ItemGroup>
 
 </Project>

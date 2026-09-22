@@ -81,6 +81,86 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
             return true;
         }
 
+        private const string DemoLangVar = "DEMO_LANG";
+        private const string DemoUrlVar = "DEMO_URL";
+
+        /// <summary>
+        /// The selected demo's language (DEMO_LANG, default "dotnet").
+        /// </summary>
+        /// <remarks>
+        /// A demo is chosen separately from the example the Contract tests
+        /// use, because the two are different apps. The GettingStarted-Web
+        /// examples prove a web integration works, and a demo carries every
+        /// page the Browser51Did tests drive, which each language mirrors so
+        /// that the same tests hold for all of them. DEMO_URL and DEMO_LANG
+        /// work the way EXAMPLE_URL and EXAMPLE_LANG do.
+        /// </remarks>
+        public static string SelectedDemoLang =>
+            Environment.GetEnvironmentVariable(DemoLangVar) ?? "dotnet";
+
+        /// <summary>
+        /// Attempts to create the demo for the current environment, being the
+        /// one already running at DEMO_URL, or else the DEMO_LANG demo
+        /// launched from its sibling checkout. Returns false when no demo is
+        /// registered for that language.
+        /// </summary>
+        public static bool TryCreateDemo(
+            out IExampleApp app,
+            out ExampleDescriptor descriptor,
+            out string skipReason)
+        {
+            Demos.TryGetValue(SelectedDemoLang, out descriptor);
+            var external = Environment.GetEnvironmentVariable(DemoUrlVar);
+            if (!string.IsNullOrEmpty(external))
+            {
+                app = new ExternalExampleApp(new Uri(external));
+                skipReason = null;
+                return true;
+            }
+            if (descriptor == null)
+            {
+                app = null;
+                skipReason =
+                    $"No demo registered for DEMO_LANG='{SelectedDemoLang}'. " +
+                    $"Known: {string.Join(", ", Demos.Keys)}.";
+                return false;
+            }
+            app = new SubprocessExampleApp(descriptor);
+            skipReason = null;
+            return true;
+        }
+
+        /// <summary>
+        /// Per-language demos. Each serves the same pages under the same
+        /// routes, and reads its input data from the same two variables,
+        /// 51DEGREES_RESOURCE_KEY and 51DEGREES_CLOUD_ENDPOINT, so a demo in
+        /// another language is added here and nothing else in the suite
+        /// changes. The suite always hands the key over under the runtime
+        /// name, whichever of its two names the suite read it from.
+        /// </summary>
+        public static readonly IReadOnlyDictionary<string, ExampleDescriptor> Demos =
+            new Dictionary<string, ExampleDescriptor>
+            {
+                ["dotnet"] = new ExampleDescriptor(
+                    Lang: "dotnet",
+                    WorkingDir: Path.Combine(
+                        RepoPaths.SiblingsRoot,
+                        "device-detection-dotnet-examples",
+                        "Examples", "Cloud", "pmp-web"),
+                    Command: "dotnet",
+                    Args: new[] { "run", "-c", "Release", "--no-launch-profile" },
+                    ReadinessPath: "/cloud/common",
+                    StartupTimeoutSeconds: 180,
+                    BuildEnv: o => new Dictionary<string, string>
+                    {
+                        ["51DEGREES_RESOURCE_KEY"] = o.ResourceKey,
+                        // the endpoint includes the api/v4 path, as every
+                        // other 51DEGREES_CLOUD_ENDPOINT reader expects
+                        ["51DEGREES_CLOUD_ENDPOINT"] = new Uri(o.CloudEndpoint, "api/v4/").ToString(),
+                        ["ASPNETCORE_URLS"] = $"http://localhost:{o.Port}",
+                    }),
+            };
+
         /// <summary>
         /// Options for starting <paramref name="app"/>, read from the
         /// environment.
