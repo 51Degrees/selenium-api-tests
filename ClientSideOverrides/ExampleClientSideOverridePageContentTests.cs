@@ -122,11 +122,19 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
             _driver = BrowserDrivers.CreateCloak(chromeOptions);
 
             var js = (IJavaScriptExecutor)_driver;
-            var width = js.ExecuteScript("return window.screen.width");
-            var height = js.ExecuteScript("return window.screen.height");
+            var width = Convert.ToInt64(
+                js.ExecuteScript("return window.screen.width"));
+            var height = Convert.ToInt64(
+                js.ExecuteScript("return window.screen.height"));
 
-            AssertRendersScreenSize(
-                Convert.ToInt64(width), Convert.ToInt64(height));
+            // The server-side rows can read 0 for a desktop browser, so a
+            // screen of 0 would match whether or not the callback ran.
+            Assert.IsTrue(
+                width > 0 && height > 0,
+                $"the browser reports a screen of {width} by {height}, so " +
+                "the client-side results cannot be told from the server's");
+
+            AssertRendersScreenSize(width, height);
         }
 
         /// <summary>
