@@ -89,6 +89,51 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
 
             _driver = BrowserDrivers.CreateChrome(chromeOptions);
 
+            var overrides = ReadOverrides();
+
+            Assert.AreEqual(
+                width, overrides.ScreenWidth,
+                "emulated screen width does not match");
+            Assert.AreEqual(
+                height, overrides.ScreenHeight,
+                "emulated screen height does not match");
+
+            AssertOverridesResolved(overrides);
+        }
+
+        /// <summary>
+        /// The same in CloakBrowser, with the screen it reports for itself.
+        /// No device is emulated, as ChromeDriver refuses mobile emulation
+        /// for a browser it attaches to.
+        /// </summary>
+        [TestMethod, RequiresCloak]
+        public void Example_ServesCoreJs_AndClientSideOverridesFlow_Cloak()
+        {
+            var chromeOptions = new ChromeOptions();
+            chromeOptions.AcceptInsecureCertificates = true;
+
+            _driver = BrowserDrivers.CreateCloak(chromeOptions);
+
+            AssertOverridesResolved(ReadOverrides());
+        }
+
+        /// <summary>
+        /// The browser's screen size, and what the flow data holds once the
+        /// client-side callback has run.
+        /// </summary>
+        private sealed record Overrides(
+            long ScreenWidth,
+            long ScreenHeight,
+            long ScreenPixelsWidth,
+            long ScreenPixelsHeight,
+            string DeviceId);
+
+        /// <summary>
+        /// Loads the example and waits for the client-side evidence to come
+        /// back as flow data.
+        /// </summary>
+        private Overrides ReadOverrides()
+        {
             _driver.Navigate().GoToUrl(_proxyUrl);
             IJavaScriptExecutor js = _driver;
 
@@ -111,20 +156,31 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
                 _ => "complete".Equals(js.ExecuteScript("return window.__t")) &&
                      !"loading".Equals(js.ExecuteScript("return window.__did")));
 
-            var screenWidth = Convert.ToInt64(js.ExecuteScript("return window.__sw"));
-            var screenHeight = Convert.ToInt64(js.ExecuteScript("return window.__sh"));
-            var screenPixelWidth = Convert.ToInt64(js.ExecuteScript("return window.__spw"));
-            var screenPixelHeight = Convert.ToInt64(js.ExecuteScript("return window.__sph"));
-            var deviceId = js.ExecuteScript("return window.__did")?.ToString();
+            return new Overrides(
+                Convert.ToInt64(js.ExecuteScript("return window.__sw")),
+                Convert.ToInt64(js.ExecuteScript("return window.__sh")),
+                Convert.ToInt64(js.ExecuteScript("return window.__spw")),
+                Convert.ToInt64(js.ExecuteScript("return window.__sph")),
+                js.ExecuteScript("return window.__did")?.ToString());
+        }
 
-            Assert.AreEqual(width, screenWidth, "emulated screen width does not match");
-            Assert.AreEqual(height, screenHeight, "emulated screen height does not match");
+        /// <summary>
+        /// The screen size and the device id came back from detection.
+        /// </summary>
+        private static void AssertOverridesResolved(Overrides overrides)
+        {
+            Assert.IsTrue(
+                overrides.ScreenPixelsWidth > 0,
+                "screenpixelswidth override did not resolve");
+            Assert.IsTrue(
+                overrides.ScreenPixelsHeight > 0,
+                "screenpixelsheight override did not resolve");
 
-            Assert.IsTrue(screenPixelWidth > 0, "screenpixelswidth override did not resolve");
-            Assert.IsTrue(screenPixelHeight > 0, "screenpixelsheight override did not resolve");
-
-            Assert.IsFalse(string.IsNullOrEmpty(deviceId), "device id was not resolved");
-            Assert.AreNotEqual("loading", deviceId, "device id was not resolved");
+            Assert.IsFalse(
+                string.IsNullOrEmpty(overrides.DeviceId),
+                "device id was not resolved");
+            Assert.AreNotEqual(
+                "loading", overrides.DeviceId, "device id was not resolved");
         }
 
         /// <summary>Quits the browser and stops the example app.</summary>

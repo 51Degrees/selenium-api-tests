@@ -104,16 +104,49 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
 
             _driver = BrowserDrivers.CreateChrome(chromeOptions);
 
+            AssertRendersScreenSize(width, height);
+        }
+
+        /// <summary>
+        /// The same in CloakBrowser, with the screen it reports for itself.
+        /// No device is emulated, as ChromeDriver refuses mobile emulation
+        /// for a browser it attaches to, so the size to expect is read from
+        /// the browser.
+        /// </summary>
+        [TestMethod, RequiresCloak]
+        public void Example_RendersClientSideOverridesOnThePage_Cloak()
+        {
+            var chromeOptions = new ChromeOptions();
+            chromeOptions.AcceptInsecureCertificates = true;
+
+            _driver = BrowserDrivers.CreateCloak(chromeOptions);
+
+            var js = (IJavaScriptExecutor)_driver;
+            var width = js.ExecuteScript("return window.screen.width");
+            var height = js.ExecuteScript("return window.screen.height");
+
+            AssertRendersScreenSize(
+                Convert.ToInt64(width), Convert.ToInt64(height));
+        }
+
+        /// <summary>
+        /// Loads the example and checks the client-side results it renders
+        /// against the size of the browser's screen.
+        /// </summary>
+        private void AssertRendersScreenSize(long width, long height)
+        {
             _driver.Navigate().GoToUrl(_proxyUrl);
 
             var rendered = WaitForRenderedResults();
 
             Assert.AreEqual(
                 width.ToString(), rendered[ScreenWidthLabel],
-                "the screen width rendered on the page does not match the emulated width");
+                "the screen width rendered on the page does not match the " +
+                "width of the browser's screen");
             Assert.AreEqual(
                 height.ToString(), rendered[ScreenHeightLabel],
-                "the screen height rendered on the page does not match the emulated height");
+                "the screen height rendered on the page does not match the " +
+                "height of the browser's screen");
 
             // The device id is only rendered by examples whose copy of the
             // shared helper is current. An example still carrying an older copy
