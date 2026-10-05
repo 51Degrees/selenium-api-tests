@@ -189,6 +189,17 @@ three things.
   others and clears the cookies and the cache, so a test starts as it would in
   a browser started for it.
 
+### Keys the browser is given
+
+CloakBrowser is a third party's closed source browser, so consider which keys
+it is shown. The `Contract` tests put no key in anything they give the
+browser and pass on what the example serves, so an example that keeps its
+resource key on the server gives CloakBrowser no key. The `CloakTests` class
+in `CloudInternal` is different, because it runs the cloud's JavaScript in the
+browser, and that script carries the resource key and the license it was
+requested with. A pipeline that runs `CloudInternal` under CloakBrowser should
+therefore use keys it is content for that browser to see.
+
 ### License
 
 The browser binary has its own license, which is separate from the MIT

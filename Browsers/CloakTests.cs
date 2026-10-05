@@ -17,6 +17,11 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Browsers
     /// CLOAK_DEBUGGER_ADDRESS names, and is skipped when it names none.
     /// Driver and HTTP server are created once per class for performance.
     /// </summary>
+    /// <remarks>
+    /// The script these tests run in the browser carries the resource key
+    /// and the license it was requested with, so both are given to
+    /// CloakBrowser.
+    /// </remarks>
     [RequiresCloak]
     [TestClass, TestCategory("CloudInternal")]
     public class CloakTests : SeleniumTestsBase
