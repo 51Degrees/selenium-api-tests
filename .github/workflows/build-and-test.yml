@@ -117,12 +117,15 @@ jobs:
       - name: Build
         run: dotnet build -c Release
 
-      # A Cloak test that was skipped would leave this job green having
-      # attached to nothing, so the pass is looked for by name.
-      - name: Start a browser
+      # Only the tests that attach to CloakBrowser run here, as the browsers
+      # job already starts Chrome and Firefox on this image. A Cloak test that
+      # was skipped would leave this job green having attached to nothing, so
+      # the pass is looked for by name.
+      - name: Attach to CloakBrowser
         run: |
           set -o pipefail
-          dotnet test -c Release --no-build --filter "TestCategory=Browser" \
+          dotnet test -c Release --no-build \
+            --filter "TestCategory=Browser&Name~Cloak_" \
             --logger "console;verbosity=normal" | tee browser-tests.log
           grep -q "Passed Cloak_RunsThePage" browser-tests.log
 

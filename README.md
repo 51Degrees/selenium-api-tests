@@ -215,9 +215,9 @@ and runs it in three jobs. The first runs the tests that need no browser, no
 cloud and no keys. The second starts Chrome and Firefox on `ubuntu-latest`,
 `ubuntu-22.04-arm` and `ubuntu-24.04-arm`, and prints what each runner
 provides before it does. The third starts CloakBrowser from its pinned image
-on `ubuntu-latest` and runs the `Browser` category with a driver attached to
-it. Together they prove a change here before any language repository picks it
-up.
+on `ubuntu-latest` and runs the Cloak tests of the `Browser` category with a
+driver attached to it. Together they prove a change here before any language
+repository picks it up.
 
 ## Browsers by architecture
 
