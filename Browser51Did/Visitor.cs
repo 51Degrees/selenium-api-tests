@@ -558,6 +558,17 @@ public sealed class Visitor : IDisposable
     /// the first frame the card is visible, measures the same thing
     /// without the delay of reaching into the page from outside.
     /// </para>
+    /// <para>
+    /// Counting per frame still cannot order two things that happen within
+    /// one frame. On 7 October 2026 the answered round finished 15 ms after
+    /// the press, in the same frame the card became visible, and was
+    /// counted against it twice in a row. So the request carrying the
+    /// answer is held back, unsent, until the card is visible or
+    /// <see cref="AnswerHoldMs"/> has passed. A card that does not wait on
+    /// the refresh is then always visible before that round can finish,
+    /// and a card that does wait appears only once the hold gives up, with
+    /// the round finished, which still fails the assertion.
+    /// </para>
     /// </summary>
     public void StartTimeline()
         => Script<object>(@"
@@ -565,6 +576,50 @@ public sealed class Visitor : IDisposable
             var t0 = performance.now();
             var events = [];
             var path = arguments[0].toLowerCase();
+            var held = [];
+            var released = false;
+            function release() {
+              if (released) { return; }
+              released = true;
+              for (var h = 0; h < held.length; h++) { held[h](); }
+              held = [];
+            }
+            function holds(url, body) {
+              return !released
+                && String(url).toLowerCase().indexOf(path) !== -1
+                && typeof body === 'string'
+                && body.indexOf('id.usage=') !== -1;
+            }
+            var send = XMLHttpRequest.prototype.send;
+            var open = XMLHttpRequest.prototype.open;
+            XMLHttpRequest.prototype.open = function (method, url) {
+              this.__51dUrl = url;
+              return open.apply(this, arguments);
+            };
+            XMLHttpRequest.prototype.send = function (body) {
+              var xhr = this;
+              var args = arguments;
+              if (holds(xhr.__51dUrl, body)) {
+                held.push(function () { send.apply(xhr, args); });
+                return;
+              }
+              return send.apply(xhr, args);
+            };
+            if (window.fetch) {
+              var fetch = window.fetch;
+              window.fetch = function (input, init) {
+                var self = this;
+                var args = arguments;
+                var url = typeof input === 'string' ? input : input && input.url;
+                if (holds(url, init && init.body)) {
+                  return new Promise(function (resolve) {
+                    held.push(function () { resolve(fetch.apply(self, args)); });
+                  });
+                }
+                return fetch.apply(self, args);
+              };
+            }
+            setTimeout(release, arguments[1]);
             function finished() {
               var n = 0;
               var all = (window.__51dTest && window.__51dTest.requests) || [];
@@ -617,13 +672,23 @@ public sealed class Visitor : IDisposable
                 cardVisible = true;
                 tl.atShareVisible = finished();
                 tl.push(now, 'share card visible');
+                release();
               }
               if (events.length < 200) { requestAnimationFrame(tick); }
             }
             tl.push(t0, 'recording started');
             requestAnimationFrame(tick);
             return null;",
-            Demo.Chosen.JsonEndpointPath);
+            Demo.Chosen.JsonEndpointPath,
+            AnswerHoldMs);
+
+    /// <summary>
+    /// The longest <see cref="StartTimeline"/> holds back the request
+    /// carrying an answer while waiting for the share card, so a card that
+    /// waits on the refresh still appears, and fails, well inside the
+    /// harness's wait.
+    /// </summary>
+    private const int AnswerHoldMs = 3000;
 
     /// <summary>
     /// How many of the client script's rounds had finished at the moment of
