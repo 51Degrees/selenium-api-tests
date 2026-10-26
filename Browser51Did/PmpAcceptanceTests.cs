@@ -430,13 +430,13 @@ public class PmpAcceptanceTests : Browser51DidTestBase
             "the second page must never be serving the identifier made "
             + "under the answer the visitor moved away from.");
 
-        var told = visitor.ChangeIdentifiers();
-        Assert.IsTrue(
-            told.Contains(onPageTwo),
-            "the change handler on the new instance must be told about the "
+        // The identifier can be on the object before the handler has run, so
+        // a single read straight after can find it not yet told.
+        Harness.Until(
+            () => visitor.ChangeIdentifiers().Contains(onPageTwo),
+            "the change handler on the new instance was told about the "
             + "identifier it settled on, including where that came from the "
-            + "record rather than from a fresh request. It was told: "
-            + string.Join(", ", told));
+            + "record rather than from a fresh request");
     }
 
     /// <summary>
