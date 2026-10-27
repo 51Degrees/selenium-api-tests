@@ -264,6 +264,13 @@ public class PmpAcceptanceTests : Browser51DidTestBase
             "the answer must be sent once, or the server drops the repeat "
             + $"and creates nothing. The body was: {answered.Body}");
 
+        // Until the page has run its snippets the identifier holds the
+        // service's "Can not form IdProbGlobal" notice, even on the round
+        // that carried the answer.
+        Harness.Until(
+            () => FodId.TryParse(visitor.Identifier(), out _, out _),
+            $"the second site settled on a 51Did in {browser}. The console "
+            + $"said: {string.Join(" | ", visitor.Console())}");
         var identifier = visitor.Identifier();
         AssertDirect(
             identifier,
