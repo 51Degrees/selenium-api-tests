@@ -282,12 +282,12 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     Lang: "python",
                     WorkingDir: Path.Combine(
                         RepoPaths.SiblingsRoot,
-                        "device-detection-python",
+                        "51degrees-python", "device-detection",
                         "fiftyone_devicedetection_examples"),
                     // the venv's python (absolute path)
                     Command: VenvPython(Path.Combine(
                         RepoPaths.SiblingsRoot,
-                        "device-detection-python",
+                        "51degrees-python", "device-detection",
                         "fiftyone_devicedetection_examples",
                         ".venv")),
                     Args: new[] { "-m", "fiftyone_devicedetection_examples.cloud.gettingstarted_web" },
