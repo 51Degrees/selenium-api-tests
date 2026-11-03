@@ -11,7 +11,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Browser51Did;
 
 /// <summary>
 /// The routes every language's demo serves, as the dotnet demo in
-/// device-detection-dotnet-examples defines them. A test names the page it
+/// 51degrees-dotnet defines them. A test names the page it
 /// loads by one of these and nothing else, so the same test drives any
 /// demo that serves the same pages.
 /// </summary>
