@@ -311,7 +311,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     Lang: "php",
                     WorkingDir: Path.Combine(
                         RepoPaths.SiblingsRoot,
-                        "device-detection-php", "examples"),
+                        "51degrees-php", "device-detection", "cloud", "examples"),
                     Command: "bash",
                     // clear the cached pipeline so the endpoint override takes effect
                     Args: new[]
