@@ -1,11 +1,12 @@
 # Builds the suite and runs it, so a change here is checked before a language
 # repository picks it up.
 #
-# Two jobs, because they answer different questions. The first runs the tests
+# Three jobs, because they answer different questions. The first runs the tests
 # that need no browser, no cloud and no keys. The second starts a real browser
 # on each runner the language repositories use, including the ARM64 Linux ones,
 # and fails when one will not start, which is the fault the second job exists
-# to catch.
+# to catch. The third starts CloakBrowser in its vendor's container and runs
+# the same check with a driver attached to it.
 name: Build and test
 
 on:
@@ -72,3 +73,64 @@ jobs:
 
       - name: Start a browser
         run: dotnet test -c Release --no-build --filter "TestCategory=Browser"
+
+  cloak:
+    name: CloakBrowser on ubuntu-latest
+    runs-on: ubuntu-latest
+    env:
+      # The vendor's image by digest, so the browser cannot change under the
+      # tag. The browser is closed source and only ever runs in this container.
+      CLOAK_IMAGE: cloakhq/cloakbrowser:0.5.12@sha256:2fdd1289154f30594c7bab74943ea7baa6b617a9ec026ab4bf339c2ebabcb712
+      CLOAK_DEBUGGER_ADDRESS: 127.0.0.1:9222
+      # Selenium Manager fetches the driver for the browser in the container
+      # and would otherwise download a Chrome of that version that nothing
+      # runs.
+      SE_AVOID_BROWSER_DOWNLOAD: 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # Host networking lets the browser reach the page the tests serve on
+      # localhost. Update checks are off, so the browser that runs is the one
+      # in the image. Nothing from the runner is mounted and no secret is
+      # passed. The first request for the version starts the browser, and
+      # its answer is printed so the log says which browser ran.
+      - name: Start CloakBrowser
+        run: |
+          docker run -d --name cloak --network host \
+            -e CLOAKBROWSER_AUTO_UPDATE=false \
+            "$CLOAK_IMAGE" cloakserve
+          for attempt in $(seq 1 30); do
+            if curl -fsS "http://$CLOAK_DEBUGGER_ADDRESS/json/version"; then
+              echo
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "CloakBrowser did not answer on $CLOAK_DEBUGGER_ADDRESS"
+          docker logs cloak
+          exit 1
+
+      - name: Build
+        run: dotnet build -c Release
+
+      # Only the tests that attach to CloakBrowser run here, as the browsers
+      # job already starts Chrome and Firefox on this image. A Cloak test that
+      # was skipped would leave this job green having attached to nothing, so
+      # the pass is looked for by name.
+      - name: Attach to CloakBrowser
+        run: |
+          set -o pipefail
+          dotnet test -c Release --no-build \
+            --filter "TestCategory=Browser&Name~Cloak_" \
+            --logger "console;verbosity=normal" | tee browser-tests.log
+          grep -q "Passed Cloak_RunsThePage" browser-tests.log
+
+      - name: Stop CloakBrowser
+        if: always()
+        run: |
+          docker logs cloak || true
+          docker rm -f cloak || true

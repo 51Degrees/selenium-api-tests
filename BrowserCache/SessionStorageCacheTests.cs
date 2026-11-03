@@ -160,6 +160,22 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.BrowserCache
             RunTest(driver, enableCookies);
         }
 
+        /// <summary>
+        /// Session storage cache behaviour in CloakBrowser.
+        /// </summary>
+        [TestMethod, RequiresCloak]
+        [DataRow(true)]
+        [DataRow(false)]
+        public void SessionStorageCache_Cloak(bool enableCookies)
+        {
+            var options = new ChromeOptions();
+            options.AcceptInsecureCertificates = true;
+
+            driver = BrowserDrivers.CreateCloak(options);
+
+            RunTest(driver, enableCookies);
+        }
+
         private void RunTest(WebDriver driver, bool enableCookies)
         {
             ClientServerUrl = $"http://localhost:{TestHelpers.GetRandomUnusedPort()}/";

@@ -1,11 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net.Http;
 using System.Runtime.InteropServices;
+using System.Text.Json;
+using System.Threading;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Edge;
 using OpenQA.Selenium.Firefox;
+using OpenQA.Selenium.Manager;
 using OpenQA.Selenium.Remote;
 
 namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
@@ -37,6 +41,13 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
     /// Giving Selenium a driver service that already knows its path stops it
     /// calling Selenium Manager at all, which is the behaviour the first case
     /// relies on.
+    /// </para>
+    /// <para>
+    /// CloakBrowser is the exception, as it is never started here. It runs in
+    /// its vendor's container, and a driver attaches to it at the address
+    /// CLOAK_DEBUGGER_ADDRESS names. That driver has to match CloakBrowser's
+    /// version of Chromium, which is not the version of the Chrome on this
+    /// machine, so a driver found on the path is never used for it.
     /// </para>
     /// </remarks>
     public static class BrowserDrivers
@@ -73,6 +84,32 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
 
         /// <summary>Path to the Edge binary to drive.</summary>
         public const string EdgeBinaryVariable = "EDGE_BIN";
+
+        /// <summary>
+        /// Address of a running CloakBrowser to attach to, as host:port, for
+        /// example 127.0.0.1:9222. The Cloak tests are skipped without it.
+        /// </summary>
+        public const string CloakDebuggerAddressVariable =
+            "CLOAK_DEBUGGER_ADDRESS";
+
+        /// <summary>
+        /// Directory holding a chromedriver of CloakBrowser's major version,
+        /// or the driver itself. Selenium Manager fetches one when it is
+        /// unset.
+        /// </summary>
+        public const string CloakDriverVariable = "CLOAKWEBDRIVER";
+
+        /// <summary>
+        /// The reason a Cloak test is skipped, naming the variable to set.
+        /// </summary>
+        public const string CloakNotConfiguredMessage =
+            "No CloakBrowser to attach to. Set "
+            + CloakDebuggerAddressVariable + " to the host and port of one "
+            + "that is running, for example 127.0.0.1:9222. The README says "
+            + "how to start one.";
+
+        // Long enough for the first request to start the browser.
+        private const int CloakVersionTimeoutSeconds = 60;
 
         /// <summary>File names a Chrome driver goes by.</summary>
         public static readonly string[] ChromeDriverNames =
@@ -202,6 +239,227 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
         }
 
         /// <summary>
+        /// True when CLOAK_DEBUGGER_ADDRESS names a CloakBrowser to attach to.
+        /// </summary>
+        public static bool IsCloakConfigured =>
+            CloakDebuggerAddress(Environment.GetEnvironmentVariable) != null;
+
+        /// <summary>
+        /// Attaches a driver to the running CloakBrowser that
+        /// CLOAK_DEBUGGER_ADDRESS names.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The browser was started by its container and outlives the driver,
+        /// so arguments in <paramref name="options"/> never reach it, and
+        /// SELENIUM_URL does not apply. Mobile emulation cannot be asked for
+        /// either, as ChromeDriver refuses it for a browser it did not start.
+        /// </para>
+        /// <para>
+        /// For the same reason the browser keeps its tabs, cookies and cache
+        /// from one test to the next. Each attach moves to a new tab, closes
+        /// the others and clears the cookies and the cache, so a test starts
+        /// as it would in a browser started for it.
+        /// </para>
+        /// </remarks>
+        /// <param name="options">Options for the driver.</param>
+        /// <returns>A driver, which the caller quits.</returns>
+        public static WebDriver CreateCloak(ChromeOptions options) =>
+            CreateCloak(Environment.GetEnvironmentVariable, options);
+
+        /// <summary>
+        /// As <see cref="CreateCloak(ChromeOptions)"/>, reading the variables
+        /// through <paramref name="getVariable"/> so the rules can be tested
+        /// without changing the environment of the whole run.
+        /// </summary>
+        /// <param name="getVariable">Reads an environment variable.</param>
+        /// <param name="options">Options for the driver.</param>
+        /// <returns>A driver, which the caller quits.</returns>
+        public static WebDriver CreateCloak(
+            Func<string, string> getVariable, ChromeOptions options)
+        {
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+            var address = CloakDebuggerAddress(getVariable);
+            if (address == null)
+            {
+                throw new WebDriverException(CloakNotConfiguredMessage);
+            }
+            var version = CloakMajorVersion(ReadCloakVersion(address));
+            options.DebuggerAddress = address;
+            var driverPath = FindNamedDriver(
+                getVariable, CloakDriverVariable, ChromeDriverNames);
+            ChromeDriver driver;
+            try
+            {
+                driver = new ChromeDriver(
+                    ChromeDriverService.CreateDefaultService(
+                        driverPath ?? FetchChromeDriver(version)),
+                    options);
+            }
+            catch (Exception e)
+            {
+                throw new WebDriverException(
+                    $"Could not attach a driver to CloakBrowser at {address}, "
+                    + $"the address {CloakDebuggerAddressVariable} names. It "
+                    + $"is Chromium {version} and needs chromedriver "
+                    + $"{version}, which was "
+                    + (driverPath != null
+                        ? $"taken from {driverPath}"
+                        : "left to Selenium Manager to fetch")
+                    + $". Set {CloakDriverVariable} to a chromedriver "
+                    + $"{version} to name one. Selenium said: {e.Message}",
+                    e);
+            }
+            try
+            {
+                StartClean(driver);
+            }
+            catch
+            {
+                driver.Quit();
+                throw;
+            }
+            return driver;
+        }
+
+        /// <summary>
+        /// The address CLOAK_DEBUGGER_ADDRESS names, or null when it is unset
+        /// or empty, which is what a CI script that exports an unset variable
+        /// produces.
+        /// </summary>
+        /// <param name="getVariable">Reads an environment variable.</param>
+        /// <returns>The address as host:port, or null.</returns>
+        public static string CloakDebuggerAddress(
+            Func<string, string> getVariable)
+        {
+            if (getVariable == null)
+            {
+                throw new ArgumentNullException(nameof(getVariable));
+            }
+            var address = getVariable(CloakDebuggerAddressVariable);
+            return string.IsNullOrWhiteSpace(address) ? null : address.Trim();
+        }
+
+        /// <summary>
+        /// The major version of the browser, read from the document its
+        /// DevTools port serves at /json/version, where the Browser field
+        /// reads like Chrome/146.0.7680.177.
+        /// </summary>
+        /// <param name="versionDocument">Body of /json/version.</param>
+        /// <returns>The major version, for example 146.</returns>
+        public static string CloakMajorVersion(string versionDocument)
+        {
+            string browser = null;
+            try
+            {
+                using var document = JsonDocument.Parse(versionDocument);
+                if (document.RootElement.ValueKind == JsonValueKind.Object
+                    && document.RootElement.TryGetProperty(
+                        "Browser", out var field)
+                    && field.ValueKind == JsonValueKind.String)
+                {
+                    browser = field.GetString();
+                }
+            }
+            catch (Exception e) when (
+                e is JsonException || e is ArgumentNullException)
+            {
+                // Reported below, with what was received.
+            }
+            var slash = browser?.IndexOf('/') ?? -1;
+            var major = slash < 0
+                ? null
+                : browser.Substring(slash + 1).Split('.')[0];
+            if (string.IsNullOrEmpty(major)
+                || int.TryParse(major, out _) == false)
+            {
+                throw new WebDriverException(
+                    $"The address {CloakDebuggerAddressVariable} names did "
+                    + "not answer /json/version with a browser version, so "
+                    + "it is not the DevTools port of a browser. It "
+                    + $"answered: {versionDocument}");
+            }
+            return major;
+        }
+
+        /// <summary>
+        /// Body of /json/version from the browser at
+        /// <paramref name="address"/>. The first request is what makes the
+        /// container start the browser.
+        /// </summary>
+        /// <param name="address">Address as host:port.</param>
+        /// <returns>The document, as JSON.</returns>
+        private static string ReadCloakVersion(string address)
+        {
+            try
+            {
+                using var client = new HttpClient
+                {
+                    Timeout = TimeSpan.FromSeconds(CloakVersionTimeoutSeconds),
+                };
+                return client.GetStringAsync(
+                    new Uri($"http://{address}/json/version"))
+                    .GetAwaiter().GetResult();
+            }
+            catch (Exception e)
+            {
+                throw new WebDriverException(
+                    $"No browser answered at {address}, the address "
+                    + $"{CloakDebuggerAddressVariable} names, which has to "
+                    + "be the host and port of a running CloakBrowser, for "
+                    + "example 127.0.0.1:9222. The README says how to start "
+                    + $"one. The request said: {e.Message}",
+                    e);
+            }
+        }
+
+        /// <summary>
+        /// Path to a chromedriver for Chrome of the given major version,
+        /// which Selenium Manager fetches unless it already holds one.
+        /// </summary>
+        /// <remarks>
+        /// Selenium Manager is asked directly, and only the driver it finds
+        /// is used. Left to itself, Selenium also wants a Chrome on this
+        /// machine, and fails on a machine that has none when
+        /// SE_AVOID_BROWSER_DOWNLOAD stops it downloading one.
+        /// </remarks>
+        /// <param name="version">Major version of the browser.</param>
+        /// <returns>Path to the driver.</returns>
+        private static string FetchChromeDriver(string version)
+        {
+            var found = SeleniumManager.DiscoverBrowserAsync(
+                "chrome",
+                new BrowserDiscoveryOptions { BrowserVersion = version },
+                CancellationToken.None).GetAwaiter().GetResult();
+            return found.DriverPath;
+        }
+
+        /// <summary>
+        /// Leaves an attached browser on one new tab with no cookies and an
+        /// empty cache. Session storage belongs to a tab, so the new tab
+        /// clears that too.
+        /// </summary>
+        /// <param name="driver">A driver attached to the browser.</param>
+        private static void StartClean(ChromeDriver driver)
+        {
+            var stale = driver.WindowHandles;
+            driver.SwitchTo().NewWindow(WindowType.Tab);
+            var fresh = driver.CurrentWindowHandle;
+            foreach (var handle in stale)
+            {
+                driver.SwitchTo().Window(handle);
+                driver.Close();
+            }
+            driver.SwitchTo().Window(fresh);
+            var none = new Dictionary<string, object>();
+            driver.ExecuteCdpCommand("Network.clearBrowserCookies", none);
+            driver.ExecuteCdpCommand("Network.clearBrowserCache", none);
+        }
+
+        /// <summary>
         /// Runs <paramref name="create"/>, which leaves Selenium Manager to
         /// fetch a driver, and on failure says what was looked for here first,
         /// so the reason reads as a missing browser rather than as a stack
@@ -281,24 +539,37 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
             string variable,
             IEnumerable<string> names)
         {
+            return FindNamedDriver(getVariable, variable, names)
+                ?? FindOnPath(getVariable, names);
+        }
+
+        /// <summary>
+        /// Path to the driver <paramref name="variable"/> names, as the driver
+        /// itself or the directory holding it, or null. The path is not
+        /// searched, which suits a driver that must not be the one the
+        /// machine keeps for its own browser.
+        /// </summary>
+        /// <param name="getVariable">Reads an environment variable.</param>
+        /// <param name="variable">Variable that names the driver.</param>
+        /// <param name="names">File names to look for in a directory.</param>
+        /// <returns>A path, or null.</returns>
+        public static string FindNamedDriver(
+            Func<string, string> getVariable,
+            string variable,
+            IEnumerable<string> names)
+        {
             if (getVariable == null)
             {
                 throw new ArgumentNullException(nameof(getVariable));
             }
             var configured = getVariable(variable);
-            if (string.IsNullOrEmpty(configured) == false)
+            if (string.IsNullOrEmpty(configured))
             {
-                if (File.Exists(configured))
-                {
-                    return configured;
-                }
-                var inDirectory = FindInDirectory(configured, names);
-                if (inDirectory != null)
-                {
-                    return inDirectory;
-                }
+                return null;
             }
-            return FindOnPath(getVariable, names);
+            return File.Exists(configured)
+                ? configured
+                : FindInDirectory(configured, names);
         }
 
         /// <summary>
