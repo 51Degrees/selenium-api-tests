@@ -145,8 +145,8 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     Lang: "dotnet",
                     WorkingDir: Path.Combine(
                         RepoPaths.SiblingsRoot,
-                        "device-detection-dotnet-examples",
-                        "Examples", "Cloud", "pmp-web"),
+                        "51degrees-dotnet", "examples", "device-detection",
+                        "Cloud", "pmp-web"),
                     Command: "dotnet",
                     Args: new[] { "run", "-c", "Release", "--no-launch-profile" },
                     ReadinessPath: "/cloud/common",
@@ -211,8 +211,8 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     Lang: "dotnet",
                     WorkingDir: Path.Combine(
                         RepoPaths.SiblingsRoot,
-                        "device-detection-dotnet-examples",
-                        "Examples", "Cloud", "GettingStarted-Web"),
+                        "51degrees-dotnet", "examples", "device-detection",
+                        "Cloud", "GettingStarted-Web"),
                     Command: "dotnet",
                     Args: new[] { "run", "-c", "Release", "--no-launch-profile" },
                     ReadinessPath: "/",
