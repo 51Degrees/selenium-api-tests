@@ -253,7 +253,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     Lang: "node",
                     WorkingDir: Path.Combine(
                         RepoPaths.SiblingsRoot,
-                        "device-detection-node",
+                        "51degrees-node", "device-detection",
                         "fiftyone.devicedetection.cloud",
                         "examples", "cloud", "gettingstarted-web"),
                     Command: "node",
@@ -269,7 +269,10 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                         ["RESOURCE_KEY"] = o.ResourceKey,
                     },
                     BuildCommand: "npm",
-                    // package.json lives one level up from examples/cloud/gettingstarted-web
+                    // package.json lives one level up from examples/cloud/gettingstarted-web.
+                    // The pipeline packages are taken from the monorepo, so its
+                    // pipeline/fiftyone.pipeline.core/javascript-templates submodule
+                    // must be checked out before this runs.
                     BuildArgs: new[] { "install", "--prefix", "../../.." },
                     BuildTimeoutSeconds: 300,
                     JsonEndpointPath: "/json"),
