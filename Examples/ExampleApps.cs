@@ -230,7 +230,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     Lang: "java",
                     WorkingDir: Path.Combine(
                         RepoPaths.SiblingsRoot,
-                        "device-detection-java-examples"),
+                        "51degrees-java", "examples", "device-detection"),
                     Command: "java",
                     Args: new[] { "-jar" },
                     ReadinessPath: "/",
