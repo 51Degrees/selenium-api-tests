@@ -12,8 +12,8 @@ resource key cannot reach a test report, and three, in
 is read from.
 
 They drive a **demo**, a small web app that serves every page the tests
-load. The dotnet demo is `Examples/Cloud/pmp-web` in
-[device-detection-dotnet-examples](https://github.com/51Degrees/device-detection-dotnet-examples).
+load. The dotnet demo is `examples/device-detection/Cloud/pmp-web` in
+[51degrees-dotnet](https://github.com/51Degrees/51degrees-dotnet).
 The pages, the recorder that watches them, the change watcher and the stub
 consent platform are plain static files in that demo, so a demo in another
 language copies them, fills the same placeholders, and these same tests then

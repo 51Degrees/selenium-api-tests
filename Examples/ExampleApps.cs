@@ -145,8 +145,8 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     Lang: "dotnet",
                     WorkingDir: Path.Combine(
                         RepoPaths.SiblingsRoot,
-                        "device-detection-dotnet-examples",
-                        "Examples", "Cloud", "pmp-web"),
+                        "51degrees-dotnet", "examples", "device-detection",
+                        "Cloud", "pmp-web"),
                     Command: "dotnet",
                     Args: new[] { "run", "-c", "Release", "--no-launch-profile" },
                     ReadinessPath: "/cloud/common",
@@ -211,8 +211,8 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     Lang: "dotnet",
                     WorkingDir: Path.Combine(
                         RepoPaths.SiblingsRoot,
-                        "device-detection-dotnet-examples",
-                        "Examples", "Cloud", "GettingStarted-Web"),
+                        "51degrees-dotnet", "examples", "device-detection",
+                        "Cloud", "GettingStarted-Web"),
                     Command: "dotnet",
                     Args: new[] { "run", "-c", "Release", "--no-launch-profile" },
                     ReadinessPath: "/",
@@ -230,7 +230,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     Lang: "java",
                     WorkingDir: Path.Combine(
                         RepoPaths.SiblingsRoot,
-                        "device-detection-java-examples"),
+                        "51degrees-java", "examples", "device-detection"),
                     Command: "java",
                     Args: new[] { "-jar" },
                     ReadinessPath: "/",
@@ -253,7 +253,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     Lang: "node",
                     WorkingDir: Path.Combine(
                         RepoPaths.SiblingsRoot,
-                        "device-detection-node",
+                        "51degrees-node", "device-detection",
                         "fiftyone.devicedetection.cloud",
                         "examples", "cloud", "gettingstarted-web"),
                     Command: "node",
@@ -269,20 +269,25 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                         ["RESOURCE_KEY"] = o.ResourceKey,
                     },
                     BuildCommand: "npm",
-                    // package.json lives one level up from examples/cloud/gettingstarted-web
-                    BuildArgs: new[] { "install", "--prefix", "../../.." },
+                    // package.json lives one level up from examples/cloud/gettingstarted-web.
+                    // The pipeline packages are taken from the monorepo, so its
+                    // pipeline/fiftyone.pipeline.core/javascript-templates submodule
+                    // must be checked out before this runs. --install-links copies
+                    // them in with their own dependencies; a symlink would resolve
+                    // those from the monorepo, where nothing is installed.
+                    BuildArgs: new[] { "install", "--install-links", "--prefix", "../../.." },
                     BuildTimeoutSeconds: 300,
                     JsonEndpointPath: "/json"),
                 ["python"] = new ExampleDescriptor(
                     Lang: "python",
                     WorkingDir: Path.Combine(
                         RepoPaths.SiblingsRoot,
-                        "device-detection-python",
+                        "51degrees-python", "device-detection",
                         "fiftyone_devicedetection_examples"),
                     // the venv's python (absolute path)
                     Command: VenvPython(Path.Combine(
                         RepoPaths.SiblingsRoot,
-                        "device-detection-python",
+                        "51degrees-python", "device-detection",
                         "fiftyone_devicedetection_examples",
                         ".venv")),
                     Args: new[] { "-m", "fiftyone_devicedetection_examples.cloud.gettingstarted_web" },
@@ -311,7 +316,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     Lang: "php",
                     WorkingDir: Path.Combine(
                         RepoPaths.SiblingsRoot,
-                        "device-detection-php", "examples"),
+                        "51degrees-php", "device-detection", "cloud", "examples"),
                     Command: "bash",
                     // clear the cached pipeline so the endpoint override takes effect
                     Args: new[]
