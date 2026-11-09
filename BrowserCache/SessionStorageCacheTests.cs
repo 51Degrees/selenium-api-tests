@@ -168,7 +168,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.BrowserCache
                 ClientServerUrl,
                 _app.BaseUrl.ToString(),
                 BuildPage(enableCookies),
-                ExampleApps.JsonEndpointPath,
+                ExampleApps.JsonEndpointPaths,
                 clientServerTokenSource.Token);
             clientServer = serverListener.Listener;
             clientHttpServer = serverListener.Server;
@@ -265,9 +265,12 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.BrowserCache
 
         private int CountJsonPosts()
         {
-            var expected = $"POST {ExampleApps.JsonEndpointPath}";
+            var expected = ExampleApps.JsonEndpointPaths
+                .Select(p => $"POST {p}")
+                .ToList();
             return clientHttpServer.RequestLog
-                .Count(r => string.Equals(r, expected, StringComparison.OrdinalIgnoreCase));
+                .Count(r => expected.Any(e => string.Equals(
+                    r, e, StringComparison.OrdinalIgnoreCase)));
         }
 
         private static List<string> GetSessionStorageKeys(IJavaScriptExecutor js)
