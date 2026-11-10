@@ -23,7 +23,12 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
     /// integration picks its own, so a test that proxies or counts those
     /// requests has to ask the descriptor rather than assume one: dotnet and
     /// rust use the default, java uses /51Degrees.core.json, and node, python
-    /// and php use /json.
+    /// and php use /json, and java uses the default and still answers the
+    /// older /51Degrees.core.json.
+    /// </param>
+    /// <param name="AlternativeJsonEndpointPaths">
+    /// Older paths the integration still answers, so a test accepts a build
+    /// whose script uses either.
     /// </param>
     /// <param name="ClientResultsElementId">
     /// Id of the element the example's page asks the shared examples helper to
@@ -44,5 +49,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
         string RunArtifactGlob = null,
         int BuildTimeoutSeconds = 0,
         string JsonEndpointPath = "/51dpipeline/json",
-        string ClientResultsElementId = "content");
+        string ClientResultsElementId = "content",
+        IReadOnlyList<string> AlternativeJsonEndpointPaths = null);
 }
