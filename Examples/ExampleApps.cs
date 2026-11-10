@@ -33,6 +33,25 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                 : "/51dpipeline/json";
 
         /// <summary>
+        /// Every path the selected language's client-side script may post to,
+        /// being <see cref="JsonEndpointPath"/> and any older path the
+        /// language still answers.
+        /// </summary>
+        public static IReadOnlyList<string> JsonEndpointPaths
+        {
+            get
+            {
+                var paths = new List<string> { JsonEndpointPath };
+                if (Descriptors.TryGetValue(SelectedLang, out var descriptor)
+                    && descriptor.AlternativeJsonEndpointPaths != null)
+                {
+                    paths.AddRange(descriptor.AlternativeJsonEndpointPaths);
+                }
+                return paths;
+            }
+        }
+
+        /// <summary>
         /// Element the selected language's page renders its client-side results
         /// into. Read from the descriptor so it is available for the CI case
         /// too, where EXAMPLE_URL points at an already-running example.
@@ -245,7 +264,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     BuildArgs: new[] { "-pl", "web/getting-started.cloud", "-am", "package", "-DskipTests" },
                     RunArtifactGlob: "web/getting-started.cloud/target/*-jar-with-dependencies.jar",
                     BuildTimeoutSeconds: 600,
-                    JsonEndpointPath: "/51Degrees.core.json",
+                    AlternativeJsonEndpointPaths: new[] { "/51Degrees.core.json" },
                     // the java page renders the client-side results into its
                     // Apple detection section rather than the shared container
                     ClientResultsElementId: "apple-detection"),
