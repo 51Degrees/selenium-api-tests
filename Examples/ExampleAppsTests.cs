@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -73,6 +75,24 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                 "run args should patch dependencies to the local source tree");
             Assert.IsTrue(rust.Args.Contains("dd-web-getting-started-cloud"),
                 "run args should target the cloud getting-started web binary");
+        }
+
+        [TestMethod]
+        public void Descriptors_Dotnet_SetsTheUnderscoreNames()
+        {
+            var dotnet = ExampleApps.Descriptors["dotnet"];
+            var env = dotnet.BuildEnv(new ExampleAppOptions(
+                Port: 5123,
+                CloudEndpoint: new Uri("https://cloud.example.test/"),
+                ResourceKey: "key",
+                ExtraEnv: new Dictionary<string, string>()));
+            Assert.AreEqual("key", env["_51DEGREES_RESOURCE_KEY"],
+                "the example reads the resource key from this name");
+            Assert.AreEqual(
+                "https://cloud.example.test/api/v4/",
+                env["_51DEGREES_CLOUD_ENDPOINT"],
+                "the example reads the endpoint, with its api/v4 path, "
+                + "from this name");
         }
     }
 }
