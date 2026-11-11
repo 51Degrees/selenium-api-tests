@@ -238,8 +238,13 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     StartupTimeoutSeconds: 180,
                     BuildEnv: o => new Dictionary<string, string>
                     {
+                        // The example reads the _51DEGREES_ names. Released
+                        // versions of it read the two older names, so both
+                        // are set until every language has released.
+                        ["_51DEGREES_RESOURCE_KEY"] = o.ResourceKey,
                         ["SUPER_RESOURCE_KEY"] = o.ResourceKey,
                         // the endpoint must include the api/v4 path
+                        ["_51DEGREES_CLOUD_ENDPOINT"] = new Uri(o.CloudEndpoint, "api/v4/").ToString(),
                         ["FIFTYONE_CLOUD_ENDPOINT"] = new Uri(o.CloudEndpoint, "api/v4/").ToString(),
                         ["ASPNETCORE_URLS"] = $"http://localhost:{o.Port}",
                         // run on a newer .NET runtime if the exact one isn't installed
