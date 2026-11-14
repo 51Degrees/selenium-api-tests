@@ -262,11 +262,18 @@ namespace FiftyOne.Pipeline.Cloud.Tests.Common.Helpers
                 if (string.Equals(headerName, "Connection", StringComparison.OrdinalIgnoreCase)) continue;
                 if (string.Equals(headerName, "Keep-Alive", StringComparison.OrdinalIgnoreCase)) continue;
                 if (string.Equals(headerName, "Transfer-Encoding", StringComparison.OrdinalIgnoreCase)) continue;
+                if (string.Equals(headerName, "Accept-Encoding", StringComparison.OrdinalIgnoreCase)) continue;
 
                 var values = req.Headers.GetValues(headerName);
                 if (values == null) continue;
                 outgoing.Headers.TryAddWithoutValidation(headerName, values);
             }
+
+            // The answer is copied back to the page unchanged, and a Brotli
+            // answer copied to a page on plain HTTP leaves the page's script
+            // undefined. "identity" asks for no compression, which leaving
+            // the header out would not (RFC 9110 section 12.5.3).
+            outgoing.Headers.TryAddWithoutValidation("Accept-Encoding", "identity");
 
             if (req.HasEntityBody)
             {
