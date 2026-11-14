@@ -230,16 +230,20 @@ public class PmpAcceptanceTests : Browser51DidTestBase
         visitor.WaitForPmp();
         visitor.WaitForClientRounds(1);
 
-        var read = visitor.SharedStoreRequests()
-            .FirstOrDefault(r => r.Method == "GET" && r.Done);
-        Assert.IsNotNull(
-            read,
-            "PMP must ask the shared store what this visitor "
-            + "already chose. It made no such call. The requests were: "
+        // The read can still be in flight when the first client round ends,
+        // because the two calls are separate and a remote cloud answers
+        // them in its own time.
+        Harness.Until(
+            () => visitor.SharedStoreRequests()
+                .Any(r => r.Method == "GET" && r.Done),
+            "PMP asked the shared store what this visitor already chose in "
+            + $"{browser}. The requests were: "
             + string.Join(" || ",
                 visitor.Requests().Select(r => r.ToString())));
+        var read = visitor.SharedStoreRequests()
+            .First(r => r.Method == "GET" && r.Done);
         Assert.IsTrue(
-            read!.Response.Contains("standard", StringComparison.Ordinal),
+            read.Response.Contains("standard", StringComparison.Ordinal),
             "the shared store must answer with the choice made on the other "
             + $"site. It answered: {Truncate(read.Response)}");
 
