@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using OpenQA.Selenium;
@@ -65,6 +66,22 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
         /// </summary>
         public const string EdgeDriverVariable = "EDGEWEBDRIVER";
 
+        /// <summary>
+        /// Seconds the first start of a browser in a run may take. A
+        /// browser's first start on a fresh runner can take minutes, where
+        /// the driver allows each command 60 seconds, so the first start is
+        /// made by <see cref="StartOnce"/> with this limit instead.
+        /// </summary>
+        public const int FirstStartTimeoutSeconds = 300;
+
+        /// <summary>Page the first start of a browser loads.</summary>
+        private const string FirstStartPage = "about:blank";
+
+        private static readonly object _firstStartLock = new object();
+
+        private static readonly Dictionary<string, string> _firstStarts =
+            new Dictionary<string, string>();
+
         /// <summary>Path to the Chrome or Chromium binary to drive.</summary>
         public const string ChromeBinaryVariable = "CHROME_BIN";
 
@@ -125,6 +142,12 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
             }
             SetBinaryLocation(options, ChromeBinaryVariable, _chromeBinaryNames);
             var driverPath = FindDriver(ChromeDriverVariable, ChromeDriverNames);
+            StartOnce("Chrome", timeout => Visit(new ChromeDriver(
+                driverPath != null
+                    ? ChromeDriverService.CreateDefaultService(driverPath)
+                    : ChromeDriverService.CreateDefaultService(),
+                options,
+                timeout)));
             if (driverPath != null)
             {
                 return new ChromeDriver(
@@ -154,6 +177,12 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
             SetBinaryLocation(
                 options, FirefoxBinaryVariable, _firefoxBinaryNames);
             var driverPath = FindDriver(GeckoDriverVariable, GeckoDriverNames);
+            StartOnce("Firefox", timeout => Visit(new FirefoxDriver(
+                driverPath != null
+                    ? FirefoxDriverService.CreateDefaultService(driverPath)
+                    : FirefoxDriverService.CreateDefaultService(),
+                options,
+                timeout)));
             if (driverPath != null)
             {
                 return new FirefoxDriver(
@@ -166,7 +195,10 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
         }
 
         /// <summary>
-        /// Creates an Edge driver.
+        /// Creates an Edge driver. Edge is not started once first, as Chrome
+        /// and Firefox are, because headless Edge on the Ubuntu runners hangs
+        /// on its first page, which would hold the run for the whole of
+        /// <see cref="FirstStartTimeoutSeconds"/>.
         /// </summary>
         /// <param name="options">Options for the browser.</param>
         /// <returns>A driver, which the caller quits.</returns>
@@ -200,6 +232,102 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
                 () => new EdgeDriver(options),
                 "Edge", EdgeDriverVariable, EdgeDriverNames);
         }
+
+        /// <summary>
+        /// The line written at the first start of each browser in this run,
+        /// by the browser's name.
+        /// </summary>
+        public static IReadOnlyDictionary<string, string> FirstStarts
+        {
+            get
+            {
+                lock (_firstStartLock)
+                {
+                    return new Dictionary<string, string>(_firstStarts);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Runs <paramref name="start"/> the first time a browser is asked
+        /// for in this run, and never again, so that the browser's slow first
+        /// start is made before the first test that uses it and not inside
+        /// one of that test's commands. Writes how long it took to the output
+        /// of the test that asked. Whatever stops the start is written and
+        /// not thrown, and the test then meets it when it starts the browser
+        /// itself.
+        /// </summary>
+        /// <param name="browser">Name of the browser.</param>
+        /// <param name="start">
+        /// Starts the browser, loads a page and quits, with the time limit
+        /// for each command it is given.
+        /// </param>
+        public static void StartOnce(string browser, Action<TimeSpan> start)
+        {
+            if (browser == null)
+            {
+                throw new ArgumentNullException(nameof(browser));
+            }
+            if (start == null)
+            {
+                throw new ArgumentNullException(nameof(start));
+            }
+            lock (_firstStartLock)
+            {
+                if (_firstStarts.ContainsKey(browser))
+                {
+                    return;
+                }
+                var watch = Stopwatch.StartNew();
+                string line;
+                try
+                {
+                    start(TimeSpan.FromSeconds(FirstStartTimeoutSeconds));
+                    line = $"Started {browser} once before its first test "
+                        + "in " + Seconds(watch) + " s.";
+                }
+                catch (Exception e)
+                {
+                    line = $"{browser} did not finish its first start in "
+                        + Seconds(watch) + " s, so the test starts it as it "
+                        + "would have. " + FirstLine(e.Message);
+                }
+                _firstStarts[browser] = line;
+                Console.WriteLine(line);
+            }
+        }
+
+        /// <summary>
+        /// Loads a page in <paramref name="driver"/> and quits it.
+        /// </summary>
+        /// <param name="driver">A driver just created.</param>
+        private static void Visit(WebDriver driver)
+        {
+            try
+            {
+                driver.Navigate().GoToUrl(FirstStartPage);
+            }
+            finally
+            {
+                driver.Quit();
+            }
+        }
+
+        /// <summary>Seconds on the watch, to one decimal place.</summary>
+        /// <param name="watch">A running watch.</param>
+        /// <returns>The seconds, written the same in every culture.</returns>
+        private static string Seconds(Stopwatch watch) =>
+            watch.Elapsed.TotalSeconds.ToString(
+                "0.0", System.Globalization.CultureInfo.InvariantCulture);
+
+        /// <summary>
+        /// The first line of <paramref name="text"/>, which for a driver's
+        /// message is the reason without the details that follow it.
+        /// </summary>
+        /// <param name="text">Text of one or more lines.</param>
+        /// <returns>The first line, or an empty string.</returns>
+        private static string FirstLine(string text) =>
+            (text ?? string.Empty).Split('\n')[0].TrimEnd('\r');
 
         /// <summary>
         /// Runs <paramref name="create"/>, which leaves Selenium Manager to
