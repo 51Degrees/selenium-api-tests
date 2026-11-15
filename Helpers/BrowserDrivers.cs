@@ -74,6 +74,17 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
         /// </summary>
         public const int FirstStartTimeoutSeconds = 300;
 
+        /// <summary>
+        /// Seconds each command of every Chrome and Firefox session may take,
+        /// its start included. A later start can take as long as a first, so
+        /// every session has the first start's limit in place of the driver's
+        /// 60 seconds.
+        /// </summary>
+        public const int SessionTimeoutSeconds = FirstStartTimeoutSeconds;
+
+        private static readonly TimeSpan _sessionTimeout =
+            TimeSpan.FromSeconds(SessionTimeoutSeconds);
+
         /// <summary>Page the first start of a browser loads.</summary>
         private const string FirstStartPage = "about:blank";
 
@@ -152,10 +163,14 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
             {
                 return new ChromeDriver(
                     ChromeDriverService.CreateDefaultService(driverPath),
-                    options);
+                    options,
+                    _sessionTimeout);
             }
             return Fetched(
-                () => new ChromeDriver(options),
+                () => new ChromeDriver(
+                    ChromeDriverService.CreateDefaultService(),
+                    options,
+                    _sessionTimeout),
                 "Chrome", ChromeDriverVariable, ChromeDriverNames);
         }
 
@@ -187,16 +202,21 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
             {
                 return new FirefoxDriver(
                     FirefoxDriverService.CreateDefaultService(driverPath),
-                    options);
+                    options,
+                    _sessionTimeout);
             }
             return Fetched(
-                () => new FirefoxDriver(options),
+                () => new FirefoxDriver(
+                    FirefoxDriverService.CreateDefaultService(),
+                    options,
+                    _sessionTimeout),
                 "Firefox", GeckoDriverVariable, GeckoDriverNames);
         }
 
         /// <summary>
-        /// Creates an Edge driver. Edge is not started once first, as Chrome
-        /// and Firefox are, because headless Edge on the Ubuntu runners hangs
+        /// Creates an Edge driver. Edge is not started once first, and its
+        /// sessions keep the driver's 60 second limit, as Chrome's and
+        /// Firefox's do not, because headless Edge on the Ubuntu runners hangs
         /// on its first page, which would hold the run for the whole of
         /// <see cref="FirstStartTimeoutSeconds"/>.
         /// </summary>
