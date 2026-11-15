@@ -98,10 +98,10 @@ public sealed class DemoMode
 /// It is the demo at DEMO_URL where that is set, and otherwise the DEMO_LANG
 /// demo, dotnet unless another is named, which the suite launches from its
 /// sibling checkout through <see cref="ExampleApps.TryCreateDemo"/>, the way
-/// the Contract tests launch an example. It is started with exactly the two
-/// input variables every language's demo reads, 51DEGREES_RESOURCE_KEY and
-/// 51DEGREES_CLOUD_ENDPOINT, taken from this run's own environment (the key
-/// from _51DEGREES_RESOURCE_KEY_51DID where 51DEGREES_RESOURCE_KEY is
+/// the Contract tests launch an example. It is started with its resource key
+/// and cloud endpoint, set under the names that demo reads (see
+/// <see cref="ExampleApps.Demos"/>) and taken from this run's own environment
+/// (the key from _51DEGREES_RESOURCE_KEY_51DID where 51DEGREES_RESOURCE_KEY is
 /// unset), and with the runtime's own way of choosing a port. DEMO_MODE chooses the
 /// route prefix, cloud unless pipeline is named.
 /// </para>
