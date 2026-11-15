@@ -28,6 +28,11 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Selenium
     /// run that quietly skipped them would say nothing, and saying nothing is
     /// the fault these were written for.
     /// </para>
+    /// <para>
+    /// CloakBrowser is not started by the suite, so its tests are skipped
+    /// until CLOAK_DEBUGGER_ADDRESS names one that is running. Once it does,
+    /// they fail like the others when the browser cannot be reached.
+    /// </para>
     /// </remarks>
     [TestClass, TestCategory("Browser")]
     public class DriverSmokeTests
@@ -125,6 +130,42 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Selenium
                 Assert.Inconclusive(e.Message);
             }
             AssertPageRan();
+        }
+
+        /// <summary>
+        /// The CloakBrowser that CLOAK_DEBUGGER_ADDRESS names runs the page.
+        /// </summary>
+        [TestMethod, RequiresCloak]
+        public void Cloak_RunsThePage()
+        {
+            _driver = BrowserDrivers.CreateCloak(new ChromeOptions());
+            AssertPageRan();
+        }
+
+        /// <summary>
+        /// CloakBrowser outlives the driver, so what one test leaves in it
+        /// must not reach the next. A second driver finds neither the cookie
+        /// nor the session storage the first one left on the same page.
+        /// </summary>
+        [TestMethod, RequiresCloak]
+        public void Cloak_StartsEachTestClean()
+        {
+            _driver = BrowserDrivers.CreateCloak(new ChromeOptions());
+            _driver.Navigate().GoToUrl(_url);
+            ((IJavaScriptExecutor)_driver).ExecuteScript(
+                "document.cookie = 'left=behind; path=/';"
+                + "sessionStorage.setItem('left', 'behind');");
+            _driver.Quit();
+
+            _driver = BrowserDrivers.CreateCloak(new ChromeOptions());
+            _driver.Navigate().GoToUrl(_url);
+            var found = ((IJavaScriptExecutor)_driver).ExecuteScript(
+                "return 'cookie [' + document.cookie + '], session storage ['"
+                + " + (sessionStorage.getItem('left') || '') + ']';");
+
+            Assert.AreEqual(
+                "cookie [], session storage []", found,
+                "the browser kept what the driver before this one left");
         }
 
         /// <summary>

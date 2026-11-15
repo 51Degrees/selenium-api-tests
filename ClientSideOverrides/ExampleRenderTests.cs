@@ -91,6 +91,29 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
 
             _driver = BrowserDrivers.CreateChrome(chromeOptions);
 
+            AssertRendersRealDetectionResult();
+        }
+
+        /// <summary>
+        /// The same in CloakBrowser, which presents itself as a desktop
+        /// browser without being given a user agent.
+        /// </summary>
+        [TestMethod, RequiresCloak]
+        public void Example_RendersRealDetectionResult_Cloak()
+        {
+            var chromeOptions = new ChromeOptions();
+            chromeOptions.AcceptInsecureCertificates = true;
+
+            _driver = BrowserDrivers.CreateCloak(chromeOptions);
+
+            AssertRendersRealDetectionResult();
+        }
+
+        /// <summary>
+        /// Loads the example and checks the page it renders server-side.
+        /// </summary>
+        private void AssertRendersRealDetectionResult()
+        {
             _driver.Navigate().GoToUrl(_example.BaseUrl);
 
             // The detection table is rendered server-side on the first response,

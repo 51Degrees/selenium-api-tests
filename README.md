@@ -34,7 +34,10 @@ Select a subset with `--filter TestCategory=Contract` or
 - **Browser** - a driver the machine already provides is used first, named by
   `CHROMEWEBDRIVER`, `GECKOWEBDRIVER` or `EDGEWEBDRIVER` or found on the path.
   When the machine provides none, Selenium Manager fetches one. Set
-  `SELENIUM_URL` to drive a browser on a Selenium grid instead.
+  `SELENIUM_URL` to drive a browser on a Selenium grid instead. CloakBrowser
+  is never started by the suite, which attaches to one already running in a
+  container when `CLOAK_DEBUGGER_ADDRESS` names it. See
+  [Running under CloakBrowser](#running-under-cloakbrowser).
 
 ## Configuration
 
@@ -50,6 +53,8 @@ and no keys are committed.
 | `SELENIUM_URL` | optional | Selenium grid URL, omit to drive a browser on this machine. |
 | `CHROMEWEBDRIVER` / `GECKOWEBDRIVER` / `EDGEWEBDRIVER` | optional | A driver, or the directory holding one. GitHub's Linux runner images set these. |
 | `CHROME_BIN` / `FIREFOX_BIN` / `EDGE_BIN` | optional | The browser binary to drive, when it is not on the path. |
+| `CLOAK_DEBUGGER_ADDRESS` | optional | Host and port of a running CloakBrowser to attach to, e.g. `127.0.0.1:9222`. The Cloak tests are skipped when it is unset. |
+| `CLOAKWEBDRIVER` | optional | A chromedriver of the same major version as CloakBrowser, or the directory holding one. Selenium Manager fetches one when it is unset. |
 | `EXAMPLE_URL` / `EXAMPLE_LANG` | `Contract` | The example app to test (CI / local). |
 | `51DEGREES_CLOUD_ENDPOINT` / `51DEGREES_RESOURCE_KEY` | `Browser51Did` | Handed to the demo under these names, the ones every language's demo reads first. |
 | `_51DEGREES_RESOURCE_KEY_51DID` | `Browser51Did` | Read where `51DEGREES_RESOURCE_KEY` is unset. The name CI sets, for a resource key carrying the 51Did product. |
@@ -105,13 +110,113 @@ export ENTERPRISE_V4_LICENSE="<license>"
 dotnet test --filter TestCategory=CloudInternal
 ```
 
+## Running under CloakBrowser
+
+[CloakBrowser](https://github.com/CloakHQ/CloakBrowser) is a patched Chromium
+that its vendor publishes for browser automation. Visitors arrive in browsers
+like it as well as in Chrome and Firefox, so the tests of the examples can be
+run in it too.
+
+The tests that use it are the two whose names start with `Cloak_` in
+`Browser`, the `CloakTests` class in `CloudInternal`, and the tests whose
+names end in `_Cloak` in `Contract`. They are skipped, with a reason that
+names the variable, until `CLOAK_DEBUGGER_ADDRESS` is set, so a run that does
+not set it is unchanged.
+
+### Starting the browser
+
+The CloakBrowser binary is closed source, so the suite never downloads it and
+never starts it. It runs only inside the vendor's Docker image, and the suite
+attaches a driver to it through the DevTools port the container serves. Pin
+the image by digest, so that the browser cannot change under a tag. Mount
+nothing from the machine into the container and pass it no keys.
+
+On a Linux machine, such as a CI runner, use host networking, so that the
+browser reaches the example and the pages the tests serve on `localhost`.
+
+```bash
+docker run -d --name cloak --network host \
+  -e CLOAKBROWSER_AUTO_UPDATE=false \
+  cloakhq/cloakbrowser:0.5.12@sha256:2fdd1289154f30594c7bab74943ea7baa6b617a9ec026ab4bf339c2ebabcb712 \
+  cloakserve
+export CLOAK_DEBUGGER_ADDRESS="127.0.0.1:9222"
+```
+
+Host networking opens the DevTools port on every network interface of the
+machine, and whoever can reach that port controls the browser. Use it only on
+a machine that takes no connections from outside, which a hosted CI runner is.
+
+With Docker Desktop on Windows, publish the port on the loopback address
+instead, and tell the browser that `localhost` is the machine Docker Desktop
+runs on.
+
+```bash
+docker run -d --name cloak -p 127.0.0.1:9222:9222 \
+  -e CLOAKBROWSER_AUTO_UPDATE=false \
+  cloakhq/cloakbrowser:0.5.12@sha256:2fdd1289154f30594c7bab74943ea7baa6b617a9ec026ab4bf339c2ebabcb712 \
+  cloakserve "--host-resolver-rules=MAP localhost host.docker.internal"
+export CLOAK_DEBUGGER_ADDRESS="127.0.0.1:9222"
+```
+
+`CLOAKBROWSER_AUTO_UPDATE=false` stops the container looking for a newer
+browser when it starts, so the browser that runs is the one in the pinned
+image. Remove the container with `docker rm -f cloak` when the run is over.
+
+### The driver
+
+The driver is ChromeDriver, and it has to be of the same major version as the
+Chromium inside CloakBrowser, which is 146 in the image above and is not the
+version of the Chrome on the machine. The suite asks the browser for its
+version and has Selenium Manager fetch that driver, so there is nothing to
+install, and a chromedriver on the path is never used. Set `CLOAKWEBDRIVER`
+to name a driver where Selenium Manager cannot fetch one.
+
+Selenium Manager also downloads a Chrome of that version when the machine has
+none, and nothing runs it. Set `SE_AVOID_BROWSER_DOWNLOAD=true` to stop that.
+
+### What is different for a test
+
+The browser was started by the container and not by the driver, which changes
+three things.
+
+- Arguments in the options, such as `--headless` or `--user-agent`, never
+  reach the browser. It sends its own user agent, and it runs with a window on
+  the container's virtual display.
+- ChromeDriver refuses mobile emulation for a browser it attaches to. The
+  `_Cloak` tests of the client-side overrides therefore emulate no device, and
+  work with the screen size the browser reports for itself.
+- The browser outlives the test. Each attach moves to a new tab, closes the
+  others and clears the cookies and the cache, so a test starts as it would in
+  a browser started for it.
+
+### Keys the browser is given
+
+CloakBrowser is a third party's closed source browser, so consider which keys
+it is shown. The `Contract` tests put no key in anything they give the
+browser and pass on what the example serves, so an example that keeps its
+resource key on the server gives CloakBrowser no key. The `CloakTests` class
+in `CloudInternal` is different, because it runs the cloud's JavaScript in the
+browser, and that script carries the resource key and the license it was
+requested with. A pipeline that runs `CloudInternal` under CloakBrowser should
+therefore use keys it is content for that browser to see.
+
+### License
+
+The browser binary has its own license, which is separate from the MIT
+license of the vendor's wrapper code. The image above carries the vendor's
+free build under version 1.3 of the CloakBrowser Binary License, dated July
+2026. [Read that version](https://github.com/CloakHQ/CloakBrowser/blob/2e379e402b52838d37e469a40e6195e887e314d1/BINARY-LICENSE.md)
+before running it. The suite uses no account and no license key.
+
 ## This repository's own CI
 
 The "Build and test" workflow builds the suite on every push and pull request,
-and runs it in two jobs. The first runs the tests that need no browser, no
+and runs it in three jobs. The first runs the tests that need no browser, no
 cloud and no keys. The second starts Chrome and Firefox on `ubuntu-latest`,
 `ubuntu-22.04-arm` and `ubuntu-24.04-arm`, and prints what each runner
-provides before it does. Together they prove a change here before any language
+provides before it does. The third starts CloakBrowser from its pinned image
+on `ubuntu-latest` and runs the Cloak tests of the `Browser` category with a
+driver attached to it. Together they prove a change here before any language
 repository picks it up.
 
 ## Browsers by architecture
@@ -139,3 +244,6 @@ nor the driver for it, so the Edge tests say so and skip.
   once against `:8080`.
 - **Each API CI** checks this repo out, launches its own example, and runs `Contract`
   against the public cloud.
+- **Either** adds CloakBrowser by starting its container before the tests and
+  setting `CLOAK_DEBUGGER_ADDRESS`, as
+  [Running under CloakBrowser](#running-under-cloakbrowser) describes.
