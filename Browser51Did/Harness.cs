@@ -57,7 +57,8 @@ public static class Harness
 
     /// <summary>
     /// The cloud, for example https://localhost:5443, with no trailing
-    /// slash, taken from 51DEGREES_CLOUD_ENDPOINT. The demo is started with
+    /// slash, taken from _51DEGREES_CLOUD_ENDPOINT, or where that is unset
+    /// from the older 51DEGREES_CLOUD_ENDPOINT. The demo is started with
     /// the same value under each name it reads, as
     /// <see cref="Examples.ExampleApps.Demos"/> sets out. That endpoint
     /// names the api/v4 path, as every reader of it expects, and the path
@@ -83,11 +84,12 @@ public static class Harness
 
     /// <summary>
     /// The resource key the demo is started with, from
-    /// 51DEGREES_RESOURCE_KEY, or where that is unset from
-    /// _51DEGREES_RESOURCE_KEY_51DID, the name continuous integration sets.
+    /// _51DEGREES_RESOURCE_KEY, or where that is unset from
+    /// _51DEGREES_RESOURCE_KEY_51DID, the name continuous integration sets,
+    /// or where both are unset from the older 51DEGREES_RESOURCE_KEY.
     /// The demo is given it under each name it reads, as
     /// <see cref="Examples.ExampleApps.Demos"/> sets out, whichever of the
-    /// two it was read from.
+    /// three it was read from.
     /// <para>
     /// The tests that create a 51Did for a standard or personalized answer
     /// need a resource key whose products include CloudV5FODiD.
@@ -118,8 +120,8 @@ public static class Harness
                 string.IsNullOrEmpty(CloudUrl) ? Endpoint.Missing : null,
                 string.IsNullOrEmpty(Resource) ? ResourceKey.Missing : null,
             }.Where(missing => missing != null))
-        + " 51DEGREES_CLOUD_ENDPOINT names the cloud including its api/v4 "
-        + "path, and 51DEGREES_RESOURCE_KEY, or where that is unset "
+        + " _51DEGREES_CLOUD_ENDPOINT names the cloud including its api/v4 "
+        + "path, and _51DEGREES_RESOURCE_KEY, or where that is unset "
         + "_51DEGREES_RESOURCE_KEY_51DID, a resource key the cloud "
         + "creates 51Dids for standard and personalized answers with. Both "
         + "are handed to the demo under each name it reads. See "
@@ -426,7 +428,7 @@ public static class Harness
                 + "personalized both are, so nothing here would be "
                 + "testing the thing it is for. The service said: "
                 + Redacted(_marketingRefusal)
-                + " Point 51DEGREES_RESOURCE_KEY, or in continuous "
+                + " Point _51DEGREES_RESOURCE_KEY, or in continuous "
                 + "integration _51DEGREES_RESOURCE_KEY_51DID, at a "
                 + "resource key the service creates standard identifiers "
                 + "for.");
@@ -574,7 +576,7 @@ public static class Harness
             + "choice's cookie, which the cloud sets Secure and "
             + "SameSite=None. A choice cannot be carried between sites "
             + "there, so nothing here would be testing that it is. Point "
-            + "51DEGREES_CLOUD_ENDPOINT at the cloud's HTTPS listener to run "
+            + "_51DEGREES_CLOUD_ENDPOINT at the cloud's HTTPS listener to run "
             + "this.");
     }
 
