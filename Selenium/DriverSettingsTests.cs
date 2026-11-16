@@ -10,17 +10,20 @@ using FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
+using OpenQA.Selenium.Chromium;
+using OpenQA.Selenium.Edge;
 using OpenQA.Selenium.Firefox;
 using OpenQA.Selenium.Remote;
 
 namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Selenium;
 
 /// <summary>
-/// The settings <see cref="BrowserDrivers"/> gives every session: the
-/// Chromium arguments Chrome needs on the runners, quiet driver services,
-/// and the session time limit for remote sessions as well as local ones.
-/// The members are reached by name, so a build without them still runs these
-/// and they fail, rather than the build stopping.
+/// The settings <see cref="BrowserDrivers"/> gives every session: headless
+/// and insecure certificates accepted, the Chromium arguments Chrome and Edge
+/// need on the runners, quiet driver services, and the session time limit
+/// for remote sessions and local Edge ones as well as local Chrome and
+/// Firefox ones. The members are reached by name, so a build without them
+/// still runs these and they fail, rather than the build stopping.
 /// </summary>
 [TestClass]
 public class DriverSettingsTests
@@ -215,6 +218,171 @@ public class DriverSettingsTests
             {
                 driver.Quit();
             }
+        }
+    }
+
+    /// <summary>
+    /// Chrome and Edge options are prepared with headless, insecure
+    /// certificates accepted and both Chromium arguments, each once.
+    /// </summary>
+    [TestMethod]
+    public void Prepare_ChromiumOptions_GetEverySettingOnce()
+    {
+        foreach (var options in new ChromiumOptions[]
+        {
+            new ChromeOptions(), new EdgeOptions(),
+        })
+        {
+            Invoke("Prepare", options);
+            Invoke("Prepare", options);
+            var name = options.GetType().Name;
+            Assert.IsTrue(
+                options.AcceptInsecureCertificates,
+                $"{name} must accept insecure certificates.");
+            foreach (var argument in ChromeArguments.Append("--headless"))
+            {
+                Assert.AreEqual(
+                    1,
+                    options.Arguments.Count(a => a == argument),
+                    $"{name} must carry {argument} exactly once. It holds: "
+                    + string.Join(" ", options.Arguments));
+            }
+        }
+    }
+
+    /// <summary>
+    /// A headless argument the caller already chose, such as
+    /// --headless=new, is not joined by a second one.
+    /// </summary>
+    [TestMethod]
+    public void Prepare_CallersHeadless_IsKept()
+    {
+        var options = new ChromeOptions();
+        options.AddArgument("--headless=new");
+        Invoke("Prepare", options);
+        Assert.AreEqual(
+            1,
+            options.Arguments.Count(a => a.StartsWith(
+                "--headless", StringComparison.Ordinal)),
+            "only the caller's headless argument may be there. The options "
+            + $"hold: {string.Join(" ", options.Arguments)}");
+    }
+
+    /// <summary>
+    /// Firefox options are prepared to accept insecure certificates.
+    /// Selenium offers no way to read back a Firefox argument, so headless
+    /// is checked by the Firefox sessions the browser tests start.
+    /// </summary>
+    [TestMethod]
+    public void Prepare_FirefoxOptions_AcceptInsecureCertificates()
+    {
+        var options = new FirefoxOptions();
+        Invoke("Prepare", options);
+        Assert.IsTrue(options.AcceptInsecureCertificates);
+    }
+
+    /// <summary>
+    /// The Edge driver service is as quiet as Chrome's.
+    /// </summary>
+    [TestMethod]
+    public void EdgeService_IsQuiet()
+    {
+        using var service = (EdgeDriverService)Invoke(
+            "EdgeService", (object)null);
+        Assert.IsFalse(service.EnableVerboseLogging, "verbose logging");
+        Assert.IsFalse(service.EnableAppendLog, "appended logging");
+        Assert.IsTrue(
+            service.SuppressInitialDiagnosticInformation, "start up banner");
+        Assert.IsTrue(service.HideCommandPromptWindow, "console window");
+    }
+
+    /// <summary>
+    /// When SELENIUM_URL names a Selenium that cannot be reached, the
+    /// Chrome, Firefox and Edge browser test classes fail rather than report
+    /// inconclusive, because a missing browser on a developer's machine is
+    /// not a fault and a grid that will not hand one out is.
+    /// </summary>
+    [TestMethod]
+    public void BrowserTestClasses_RemoteThatCannotBeReached_Fail()
+    {
+        var probe = new TcpListener(IPAddress.Loopback, 0);
+        probe.Start();
+        var port = ((IPEndPoint)probe.LocalEndpoint).Port;
+        probe.Stop();
+        var before = Environment.GetEnvironmentVariable(SeleniumUrlVariable);
+        Environment.SetEnvironmentVariable(
+            SeleniumUrlVariable, $"http://localhost:{port}/");
+        try
+        {
+            foreach (var (name, init, cleanup) in new (string, Action, Action)[]
+            {
+                ("ChromeTests",
+                    () => Browsers.ChromeTests.ClassInit(null),
+                    Browsers.ChromeTests.ClassCleanup),
+                ("GeckoTests",
+                    () => Browsers.GeckoTests.ClassInit(null),
+                    Browsers.GeckoTests.ClassCleanup),
+                ("EdgeTests",
+                    () => Browsers.EdgeTests.ClassInit(null),
+                    Browsers.EdgeTests.ClassCleanup),
+            })
+            {
+                try
+                {
+                    Assert.Throws<WebDriverException>(
+                        init,
+                        $"{name} must fail when the grid cannot be reached, "
+                        + "not report inconclusive.");
+                }
+                finally
+                {
+                    cleanup();
+                }
+            }
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(SeleniumUrlVariable, before);
+        }
+    }
+
+    /// <summary>
+    /// A local Edge has both Chromium arguments and the session limit.
+    /// Microsoft ships no Edge for ARM64 Linux, so there it is
+    /// inconclusive with the reason <see cref="BrowserDrivers.CreateEdge"/>
+    /// gives.
+    /// </summary>
+    [TestMethod, TestCategory("Browser")]
+    public void CreateEdge_HasTheArgumentsAndTheSessionLimit()
+    {
+        var options = new EdgeOptions();
+        WebDriver driver;
+        try
+        {
+            driver = BrowserDrivers.CreateEdge(options);
+        }
+        catch (WebDriverException e) when (BrowserDrivers.IsLinuxArm64)
+        {
+            Assert.Inconclusive(e.Message);
+            return;
+        }
+        try
+        {
+            foreach (var argument in ChromeArguments)
+            {
+                Assert.IsTrue(
+                    options.Arguments.Contains(argument),
+                    $"CreateEdge must give {argument}. The options hold: "
+                    + string.Join(" ", options.Arguments));
+            }
+            Assert.AreEqual(
+                TimeSpan.FromSeconds(BrowserDrivers.SessionTimeoutSeconds),
+                Limit(driver),
+                "a local Edge session must have the session limit.");
+        }
+        finally
+        {
+            driver.Quit();
         }
     }
 
