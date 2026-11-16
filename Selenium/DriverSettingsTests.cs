@@ -32,6 +32,8 @@ public class DriverSettingsTests
     /// </summary>
     private const string LimitFieldName = "serverResponseTimeout";
 
+    private const string SeleniumUrlVariable = "SELENIUM_URL";
+
     private static readonly string[] ChromeArguments =
         { "--no-sandbox", "--disable-dev-shm-usage" };
 
@@ -81,6 +83,49 @@ public class DriverSettingsTests
         finally
         {
             driver.Quit();
+        }
+    }
+
+    /// <summary>
+    /// The 51Did harness starts its browsers itself rather than through
+    /// <see cref="BrowserDrivers.CreateChrome"/>, and its remote Chrome and
+    /// Firefox sessions get the same limit. SELENIUM_URL names the stand-in
+    /// for this test only, and is put back as it was.
+    /// </summary>
+    [TestMethod]
+    public void HarnessRemoteSessions_HaveTheSessionLimit()
+    {
+        using var remote = new StandInRemote();
+        var before = Environment.GetEnvironmentVariable(SeleniumUrlVariable);
+        Environment.SetEnvironmentVariable(
+            SeleniumUrlVariable, remote.Url.ToString());
+        try
+        {
+            foreach (var start in new Func<IWebDriver>[]
+            {
+                () => Browser51Did.Harness.NewChrome(),
+                () => Browser51Did.Harness.NewFirefox(),
+            })
+            {
+                var driver = (WebDriver)start();
+                try
+                {
+                    Assert.AreEqual(
+                        TimeSpan.FromSeconds(
+                            BrowserDrivers.SessionTimeoutSeconds),
+                        Limit(driver),
+                        "a remote session the harness starts must have the "
+                        + "session limit.");
+                }
+                finally
+                {
+                    driver.Quit();
+                }
+            }
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(SeleniumUrlVariable, before);
         }
     }
 
