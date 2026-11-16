@@ -86,6 +86,17 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
             TimeSpan.FromSeconds(SessionTimeoutSeconds);
 
         /// <summary>
+        /// Attempts a browser session is given to start.
+        /// </summary>
+        public const int SessionStartAttempts = 1;
+
+        /// <summary>
+        /// Seconds between one failed start of a session and the next
+        /// attempt.
+        /// </summary>
+        public const int SessionRetryDelaySeconds = 0;
+
+        /// <summary>
         /// Arguments every Chrome is given. --no-sandbox turns off Chrome's
         /// sandbox, without which Chrome exits as it starts on some runners,
         /// and --disable-dev-shm-usage makes Chrome write its shared memory
@@ -169,12 +180,12 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
                 ChromeService(driverPath), options, timeout)));
             if (driverPath != null)
             {
-                return new ChromeDriver(
-                    ChromeService(driverPath), options, _sessionTimeout);
+                return Retried("Chrome", () => new ChromeDriver(
+                    ChromeService(driverPath), options, _sessionTimeout));
             }
             return Fetched(
-                () => new ChromeDriver(
-                    ChromeService(null), options, _sessionTimeout),
+                () => Retried("Chrome", () => new ChromeDriver(
+                    ChromeService(null), options, _sessionTimeout)),
                 "Chrome", ChromeDriverVariable, ChromeDriverNames);
         }
 
@@ -264,12 +275,12 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
                 FirefoxService(driverPath), options, timeout)));
             if (driverPath != null)
             {
-                return new FirefoxDriver(
-                    FirefoxService(driverPath), options, _sessionTimeout);
+                return Retried("Firefox", () => new FirefoxDriver(
+                    FirefoxService(driverPath), options, _sessionTimeout));
             }
             return Fetched(
-                () => new FirefoxDriver(
-                    FirefoxService(null), options, _sessionTimeout),
+                () => Retried("Firefox", () => new FirefoxDriver(
+                    FirefoxService(null), options, _sessionTimeout)),
                 "Firefox", GeckoDriverVariable, GeckoDriverNames);
         }
 
@@ -304,12 +315,12 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
             SetBinaryLocation(options, EdgeBinaryVariable, _edgeBinaryNames);
             if (driverPath != null)
             {
-                return new EdgeDriver(
+                return Retried("Edge", () => new EdgeDriver(
                     EdgeDriverService.CreateDefaultService(driverPath),
-                    options);
+                    options));
             }
             return Fetched(
-                () => new EdgeDriver(options),
+                () => Retried("Edge", () => new EdgeDriver(options)),
                 "Edge", EdgeDriverVariable, EdgeDriverNames);
         }
 
@@ -326,6 +337,27 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
                     return new Dictionary<string, string>(_firstStarts);
                 }
             }
+        }
+
+        /// <summary>
+        /// Runs <paramref name="create"/> and hands back the session it
+        /// gives.
+        /// </summary>
+        /// <typeparam name="T">What is created.</typeparam>
+        /// <param name="browser">Name of the browser, for the output.</param>
+        /// <param name="create">Creates the session.</param>
+        /// <returns>What <paramref name="create"/> gave.</returns>
+        public static T Retried<T>(string browser, Func<T> create)
+        {
+            if (browser == null)
+            {
+                throw new ArgumentNullException(nameof(browser));
+            }
+            if (create == null)
+            {
+                throw new ArgumentNullException(nameof(create));
+            }
+            return create();
         }
 
         /// <summary>
