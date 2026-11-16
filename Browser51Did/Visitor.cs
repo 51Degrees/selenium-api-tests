@@ -54,6 +54,13 @@ public sealed class RecordedRequest
                 return Uri.UnescapeDataString(name.Replace('+', ' ')) == key;
             });
 
+    /// <summary>
+    /// The status, and the error where the request failed, for a failure
+    /// message that has to say why a body is empty.
+    /// </summary>
+    public string Outcome
+        => Error == null ? $"{Status}" : $"{Status} with the error {Error}";
+
     public override string ToString()
         => $"{Kind} {Method} {Url} status={Status} done={Done} "
             + $"body={Body}";
@@ -125,7 +132,7 @@ public sealed class Visitor : IDisposable
         Driver.Navigate().GoToUrl(Demo.Chosen.PageUrl(site, route));
         Harness.Until(
             () => Script<string>("return document.readyState;") == "complete",
-            $"the {route} page at {site} finished loading");
+            () => $"the {route} page at {site} finished loading");
     }
 
     public T? Script<T>(string body, params object[] arguments)
@@ -177,6 +184,35 @@ public sealed class Visitor : IDisposable
             .Where(r => r.Url.Contains(
                 "/api/v4/pmp/pref", StringComparison.OrdinalIgnoreCase))
             .ToList();
+
+    /// <summary>
+    /// A request read earlier, read again once its response has settled.
+    /// The recorder marks a fetch done when its headers arrive and records
+    /// the body afterwards, so an earlier copy can hold none. The request
+    /// is found by its method, address and body, and waited for until its
+    /// body is recorded, it fails, or its status is not 200, so a caller
+    /// can say which of those happened.
+    /// </summary>
+    public RecordedRequest Settled(RecordedRequest request)
+    {
+        RecordedRequest? current = null;
+        Harness.Until(
+            () =>
+            {
+                current = Requests().LastOrDefault(r =>
+                    r.Method == request.Method
+                    && r.Url == request.Url
+                    && r.Body == request.Body);
+                return current != null
+                    && (current.Response.Length > 0
+                        || current.Error != null
+                        || current.Status != 200);
+            },
+            () => $"the page recorded the response to {request.Method} "
+                + $"{request.Url}. The requests were: "
+                + string.Join(" || ", Requests().Select(r => r.ToString())));
+        return current!;
+    }
 
     /// <summary>Every console line, in the order they were written.</summary>
     public IReadOnlyList<string> Console()
@@ -513,10 +549,10 @@ public sealed class Visitor : IDisposable
     public void WaitForClientRounds(int rounds)
         => Harness.Until(
             () => ClientRequests().Count(r => r.Done) >= rounds,
-            $"the client script finished {rounds} round(s) in "
-            + $"{BrowserName}. It finished "
-            + $"{ClientRequests().Count(r => r.Done)}. {ServedSoFar()}. "
-            + $"The console said: {string.Join(" | ", Console())}");
+            () => $"the client script finished {rounds} round(s) in "
+                + $"{BrowserName}. It finished "
+                + $"{ClientRequests().Count(r => r.Done)}. {ServedSoFar()}. "
+                + $"The console said: {string.Join(" | ", Console())}");
 
     /// <summary>
     /// Which page the browser is on and how far it got, which is what
@@ -720,26 +756,26 @@ public sealed class Visitor : IDisposable
     public void WaitForPmp()
         => Harness.Until(
             PmpLoaded,
-            $"PMP loaded in {BrowserName}. "
-            + $"{ServedSoFar()}. The console said: "
-            + $"{string.Join(" | ", Console())}");
+            () => $"PMP loaded in {BrowserName}. "
+                + $"{ServedSoFar()}. The console said: "
+                + $"{string.Join(" | ", Console())}");
 
     /// <summary>Waits until a named card is showing.</summary>
     public void WaitForCard(string card)
         => Harness.Until(
             () => CardVisible(card),
-            $"the {card} card appeared in {BrowserName}. "
-            + $"{ServedSoFar()}. The console said: "
-            + $"{string.Join(" | ", Console())}");
+            () => $"the {card} card appeared in {BrowserName}. "
+                + $"{ServedSoFar()}. The console said: "
+                + $"{string.Join(" | ", Console())}");
 
     /// <summary>Waits until the client script's object exists.</summary>
     public void WaitForClientObject(
         string objectName = Harness.DefaultObjectName)
         => Harness.Until(
             () => HasClientObject(objectName),
-            $"an object called '{objectName}' appeared in {BrowserName}. "
-            + $"{ServedSoFar()}. The console said: "
-            + $"{string.Join(" | ", Console())}");
+            () => $"an object called '{objectName}' appeared in "
+                + $"{BrowserName}. {ServedSoFar()}. The console said: "
+                + $"{string.Join(" | ", Console())}");
 
     #endregion
 

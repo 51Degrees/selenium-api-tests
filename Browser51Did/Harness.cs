@@ -745,6 +745,15 @@ public static class Harness
     /// </summary>
     public static void Until(
         Func<bool> condition, string whatWasWaitedFor)
+        => Until(condition, () => whatWasWaitedFor);
+
+    /// <summary>
+    /// As <see cref="Until(Func{bool}, string)"/>, with the message built
+    /// only when the wait gives up, so the requests or console it reports
+    /// are the page as it stood then rather than when the wait began.
+    /// </summary>
+    public static void Until(
+        Func<bool> condition, Func<string> whatWasWaitedFor)
     {
         var deadline = DateTime.UtcNow + Patience;
         while (DateTime.UtcNow < deadline)
@@ -757,7 +766,7 @@ public static class Harness
         }
         Assert.Fail(Redacted(
             $"Waited {Patience.TotalSeconds:0} seconds and "
-            + $"{whatWasWaitedFor} never happened."));
+            + $"{whatWasWaitedFor()} never happened."));
     }
 
     #endregion
