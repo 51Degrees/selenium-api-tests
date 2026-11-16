@@ -653,11 +653,10 @@ public static class Harness
     {
         var options = new ChromeOptions();
         options.AddArgument("--headless=new");
-        BrowserDrivers.AddChromeArguments(options);
+        BrowserDrivers.Prepare(options);
         options.AddArgument(
             "--host-resolver-rules="
             + $"MAP {SiteA} 127.0.0.1,MAP {SiteB} 127.0.0.1");
-        options.AcceptInsecureCertificates = true;
         foreach (var argument in extraArguments)
         {
             options.AddArgument(argument);
@@ -681,8 +680,8 @@ public static class Harness
     public static IWebDriver NewFirefox(
         IReadOnlyDictionary<string, object>? preferences = null)
     {
-        var options = new FirefoxOptions { AcceptInsecureCertificates = true };
-        options.AddArgument("-headless");
+        var options = new FirefoxOptions();
+        BrowserDrivers.Prepare(options);
         options.SetPreference("network.dns.localDomains", $"{SiteA},{SiteB}");
         // Third party cookies are what the shared choice travels on, so
         // the tests state the behaviour they are written for rather than

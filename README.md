@@ -37,17 +37,19 @@ Select a subset with `--filter TestCategory=Contract` or
   When the machine provides none, Selenium Manager fetches one. Set
   `SELENIUM_URL` to drive a browser on a Selenium grid instead. Chrome and
   Firefox are each started once, before the first test that asks
-  `BrowserDrivers` for them, and every Chrome and Firefox session, that first
-  start included, gives each command up to 300 seconds, because a start on a
-  fresh or busy runner can take longer than the driver's default of 60
+  `BrowserDrivers` for them, and every Chrome, Edge and Firefox session, that
+  first start included, gives each command up to 300 seconds, because a start
+  on a fresh or busy runner can take longer than the driver's default of 60
   seconds. A session on a Selenium grid gets the same 300 seconds. The first
-  start's time is written to that test's output. Every Chrome is given
-  `--no-sandbox` and `--disable-dev-shm-usage`, so a test does not add them
-  itself, and the Chrome and Firefox drivers start quietly, with no start up
-  banner, no verbose log and no console window. The 51Did tests are the
-  exception, as `Browser51Did/Harness.cs` starts their Chrome and Firefox
-  itself, with the same time limit, arguments and quiet drivers, but leaves
-  Selenium Manager to find or fetch the driver and makes no first start.
+  start's time is written to that test's output. `BrowserDrivers.Prepare`
+  runs every browser headless and accepting insecure certificates, and gives
+  every Chrome and Edge `--no-sandbox` and `--disable-dev-shm-usage`, so a test
+  sets none of these itself. The Chrome, Edge and Firefox drivers start
+  quietly, with no start up banner, no verbose log and no console window. The
+  51Did tests are the exception, as `Browser51Did/Harness.cs` starts their
+  Chrome and Firefox itself, with the same preparation, time limit and quiet
+  drivers, but leaves Selenium Manager to find or fetch the driver and makes
+  no first start.
 
 ## Configuration
 

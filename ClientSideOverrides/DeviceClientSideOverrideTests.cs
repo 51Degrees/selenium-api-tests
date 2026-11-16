@@ -112,8 +112,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
             string expectedHardwareId)
         {
             var chromeOptions = new ChromeOptions();
-            chromeOptions.AcceptInsecureCertificates = true;
-            chromeOptions.AddArgument("--headless");
             chromeOptions.EnableMobileEmulation(
                 new ChromiumMobileEmulationDeviceSettings
                 {

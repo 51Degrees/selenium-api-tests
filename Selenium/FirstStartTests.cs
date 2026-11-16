@@ -88,7 +88,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Selenium
         public void Chrome_StartsOnceBeforeItsFirstTest()
         {
             var options = new ChromeOptions();
-            options.AddArgument("--headless");
             AssertStartedOnce(
                 "Chrome", () => BrowserDrivers.CreateChrome(options));
         }
@@ -100,7 +99,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Selenium
         public void Firefox_StartsOnceBeforeItsFirstTest()
         {
             var options = new FirefoxOptions();
-            options.AddArgument("--headless");
             AssertStartedOnce(
                 "Firefox", () => BrowserDrivers.CreateFirefox(options));
         }

@@ -34,9 +34,8 @@ public static class ExternalSeleniumHelper
                 // options do not carry it already.
                 BrowserDrivers.AddChromeArguments(chromeOptions);
                 break;
-            case EdgeOptions  edgeOptions:
-                edgeOptions.AddArgument(noSandboxArgument);
-                edgeOptions.AddArgument(disableDevShmUsageArgument);
+            case EdgeOptions edgeOptions:
+                BrowserDrivers.AddChromeArguments(edgeOptions);
                 break;
             case FirefoxOptions firefoxOptions:
                 firefoxOptions.AddArgument(noSandboxArgument);

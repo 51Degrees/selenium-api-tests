@@ -86,8 +86,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.BrowserCache
         public void JavaScript_BrowserCache_Chrome()
         {
             var options = new ChromeOptions();
-            options.AcceptInsecureCertificates = true;
-            options.AddArgument("--headless");
 
             driver = BrowserDrivers.CreateChrome(options);
 
@@ -98,12 +96,9 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.BrowserCache
         /// Browser cache behaviour in Edge.
         /// </summary>
         [TestMethod]
-        [Ignore("Headless Edge on ubuntu-latest hangs on first navigation; Chrome and Firefox provide sufficient coverage.")]
         public void JavaScript_BrowserCache_Edge()
         {
             var options = new EdgeOptions();
-            options.AcceptInsecureCertificates = true;
-            options.AddArgument("--headless");
 
             driver = BrowserDrivers.CreateEdge(options);
 
@@ -117,8 +112,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.BrowserCache
         public void JavaScript_BrowserCache_FireFox()
         {
             var options = new FirefoxOptions();
-            options.AcceptInsecureCertificates = true;
-            options.AddArgument("--headless");
 
             driver = BrowserDrivers.CreateFirefox(options);
 

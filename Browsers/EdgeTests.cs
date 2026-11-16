@@ -16,7 +16,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Browsers
     /// Performs Selenium Tests using an Edge WebDriver.
     /// Browser and HTTP server are created once per class for performance.
     /// </summary>
-    [Ignore("Headless Edge on ubuntu-latest hangs on first navigation; Chrome and Firefox provide sufficient coverage.")]
     [TestClass, TestCategory("CloudInternal")]
     public class EdgeTests : SeleniumTestsBase
     {
@@ -37,13 +36,15 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Browsers
             s_clientServer = TestHelpers.SimpleListener(s_clientServerUrl, s_cts.Token);
 
             var options = new EdgeOptions();
-            options.AcceptInsecureCertificates = true;
-            options.AddArgument("--headless");
             try
             {
                 s_driver = BrowserDrivers.CreateEdge(options);
             }
-            catch (WebDriverException e)
+            // A missing browser on this machine is not a fault of the
+            // test. A Selenium grid that cannot hand one out is, so its
+            // failure is not reported as inconclusive.
+            catch (WebDriverException e) when (
+                ExternalSeleniumHelper.IsExternalSelenium(out _) == false)
             {
                 Assert.Inconclusive(e.Message);
             }
