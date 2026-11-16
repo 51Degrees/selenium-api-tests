@@ -8,23 +8,23 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Browser51Did;
 
 /// <summary>
-/// Which of its two names the demo's resource key is read from. The rules
-/// are read through a lookup the test supplies, so nothing here changes the
-/// environment of the run around it.
-/// <para>
-/// These exist because the key was once read straight from the process
-/// environment while every other setting went through the lookup a
-/// <see cref="TestConfig"/> is given, so a configuration built for a test
-/// quietly ignored what the test gave it for this one setting.
-/// </para>
+/// Which name the demo's resource key and cloud endpoint are read from.
+/// The current names are read before the older ones, in the order the
+/// demos read their own. The rules are read through a lookup the test
+/// supplies, so nothing here changes the environment of the run around it.
 /// </summary>
 [TestClass, TestCategory("Browser51Did")]
 public class DemoSettingsTests
 {
     private const string RuntimeKey = "NOTAKEYFROMTHERUNTIMENAME";
     private const string CiKey = "NOTAKEYFROMTHECINAME";
+    private const string OldKey = "NOTAKEYFROMTHEOLDNAME";
+    private const string RuntimeEndpoint = "https://runtime.example.test/api/v4/";
+    private const string OldEndpoint = "https://old.example.test/api/v4/";
 
-    private static TestConfig Config(params string[] namesAndValues)
+    private readonly List<string> _reports = new List<string>();
+
+    private TestConfig Config(params string[] namesAndValues)
     {
         var values = new Dictionary<string, string>();
         for (var index = 0; index < namesAndValues.Length; index += 2)
@@ -32,41 +32,66 @@ public class DemoSettingsTests
             values[namesAndValues[index]] = namesAndValues[index + 1];
         }
         return new TestConfig(
-            name => values.TryGetValue(name, out var value) ? value : null!);
+            name => values.TryGetValue(name, out var value) ? value : null!,
+            _reports.Add);
     }
 
     /// <summary>
-    /// A developer's own key wins over the one continuous integration set,
-    /// because the runtime name is the one every language's demo reads.
+    /// The runtime name wins over the one continuous integration sets and
+    /// over the older name, because it is what a developer sets for this
+    /// run, and nothing is reported.
     /// </summary>
     [TestMethod]
-    public void BothNamesSet_TheRuntimeNameWins()
+    public void AllThreeKeyNamesSet_TheRuntimeNameWins()
     {
         var config = Config(
             TestConfig.DemoResourceKeyVariable, RuntimeKey,
-            TestConfig.DemoResourceKeyCiVariable, CiKey);
+            TestConfig.DemoResourceKeyCiVariable, CiKey,
+            TestConfig.DemoResourceKeyOldVariable, OldKey);
         Assert.AreEqual(RuntimeKey, config.DemoResourceKey);
+        Assert.AreEqual(0, _reports.Count);
     }
 
     /// <summary>
-    /// Where only continuous integration's name is set, that is used, and
-    /// an empty runtime name counts as unset.
+    /// The CI name is a current name, so it is read before the older name,
+    /// and an empty runtime name counts as unset.
     /// </summary>
     [TestMethod]
-    public void OnlyTheCiNameSet_ItIsUsed()
+    public void CiAndOldKeyNamesSet_TheCiNameWins()
     {
         var config = Config(
             TestConfig.DemoResourceKeyVariable, "",
-            TestConfig.DemoResourceKeyCiVariable, CiKey);
+            TestConfig.DemoResourceKeyCiVariable, CiKey,
+            TestConfig.DemoResourceKeyOldVariable, OldKey);
         Assert.AreEqual(CiKey, config.DemoResourceKey);
+        Assert.AreEqual(0, _reports.Count);
     }
 
     /// <summary>
-    /// Neither set fails naming both, in the order they are read, so the
-    /// reader knows either will do.
+    /// Where only the older name is set it is still read, and one sentence
+    /// says it is deprecated and names the one that replaces it.
     /// </summary>
     [TestMethod]
-    public void NeitherNameSet_TheFailureNamesBoth()
+    public void OnlyTheOldKeyNameSet_ItIsReadAndReported()
+    {
+        var config = Config(TestConfig.DemoResourceKeyOldVariable, OldKey);
+        Assert.AreEqual(OldKey, config.DemoResourceKey);
+        Assert.AreEqual(1, _reports.Count);
+        StringAssert.Contains(
+            _reports[0],
+            $"{TestConfig.DemoResourceKeyOldVariable} is deprecated and "
+            + $"{TestConfig.DemoResourceKeyVariable} replaces it");
+        Assert.IsFalse(
+            _reports[0].Contains(OldKey, StringComparison.Ordinal),
+            "the sentence names the variable and never its value");
+    }
+
+    /// <summary>
+    /// No key name set fails naming all three, in the order they are read,
+    /// so the reader knows any of them will do.
+    /// </summary>
+    [TestMethod]
+    public void NoKeyNameSet_TheFailureNamesAllThree()
     {
         var config = Config();
         var failure = Assert.ThrowsExactly<InvalidOperationException>(
@@ -74,6 +99,37 @@ public class DemoSettingsTests
         StringAssert.Contains(
             failure.Message,
             $"'{TestConfig.DemoResourceKeyVariable}', or where that is "
-            + $"unset '{TestConfig.DemoResourceKeyCiVariable}'");
+            + $"unset '{TestConfig.DemoResourceKeyCiVariable}', or where "
+            + $"that is unset '{TestConfig.DemoResourceKeyOldVariable}'");
+    }
+
+    /// <summary>
+    /// The endpoint's runtime name wins over its older name.
+    /// </summary>
+    [TestMethod]
+    public void BothEndpointNamesSet_TheRuntimeNameWins()
+    {
+        var config = Config(
+            TestConfig.DemoCloudEndpointVariable, RuntimeEndpoint,
+            TestConfig.DemoCloudEndpointOldVariable, OldEndpoint);
+        Assert.AreEqual(RuntimeEndpoint, config.DemoCloudEndpoint);
+        Assert.AreEqual(0, _reports.Count);
+    }
+
+    /// <summary>
+    /// Where only the endpoint's older name is set it is still read, and
+    /// reported in the same way as the key's.
+    /// </summary>
+    [TestMethod]
+    public void OnlyTheOldEndpointNameSet_ItIsReadAndReported()
+    {
+        var config = Config(
+            TestConfig.DemoCloudEndpointOldVariable, OldEndpoint);
+        Assert.AreEqual(OldEndpoint, config.DemoCloudEndpoint);
+        Assert.AreEqual(1, _reports.Count);
+        StringAssert.Contains(
+            _reports[0],
+            $"{TestConfig.DemoCloudEndpointOldVariable} is deprecated and "
+            + $"{TestConfig.DemoCloudEndpointVariable} replaces it");
     }
 }

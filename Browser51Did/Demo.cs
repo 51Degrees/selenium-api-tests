@@ -101,8 +101,7 @@ public sealed class DemoMode
 /// the Contract tests launch an example. It is started with its resource key
 /// and cloud endpoint, set under the names that demo reads (see
 /// <see cref="ExampleApps.Demos"/>) and taken from this run's own environment
-/// (the key from _51DEGREES_RESOURCE_KEY_51DID where 51DEGREES_RESOURCE_KEY is
-/// unset), and with the runtime's own way of choosing a port. DEMO_MODE chooses the
+/// (each from the names <see cref="Harness"/> reads, in its order), and with the runtime's own way of choosing a port. DEMO_MODE chooses the
 /// route prefix, cloud unless pipeline is named.
 /// </para>
 /// </summary>
