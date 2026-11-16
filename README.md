@@ -41,7 +41,12 @@ Select a subset with `--filter TestCategory=Contract` or
   start included, gives each command up to 300 seconds, because a start on a
   fresh or busy runner can take longer than the driver's default of 60
   seconds. A session on a Selenium grid gets the same 300 seconds. The first
-  start's time is written to that test's output. Every Chrome is given
+  start's time is written to that test's output. A session that the browser
+  or its driver did not start is started again, up to three attempts with two
+  seconds between them, and each failed attempt is written to that test's
+  output, because a driver that starts the browser and then cannot reach it
+  answers in about a second and the next attempt usually starts. Every Chrome
+  is given
   `--no-sandbox` and `--disable-dev-shm-usage`, so a test does not add them
   itself, and the Chrome and Firefox drivers start quietly, with no start up
   banner, no verbose log and no console window. The 51Did tests are the

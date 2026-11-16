@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Edge;
@@ -86,15 +87,19 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
             TimeSpan.FromSeconds(SessionTimeoutSeconds);
 
         /// <summary>
-        /// Attempts a browser session is given to start.
+        /// Attempts a browser session is given to start. A driver that
+        /// started the browser but could not reach it answers in about a
+        /// second and leaves nothing behind, and the next attempt usually
+        /// starts, so one such answer does not fail a test.
         /// </summary>
-        public const int SessionStartAttempts = 1;
+        public const int SessionStartAttempts = 3;
 
         /// <summary>
         /// Seconds between one failed start of a session and the next
-        /// attempt.
+        /// attempt, which leaves the machine a moment before it is asked
+        /// again.
         /// </summary>
-        public const int SessionRetryDelaySeconds = 0;
+        public const int SessionRetryDelaySeconds = 2;
 
         /// <summary>
         /// Arguments every Chrome is given. --no-sandbox turns off Chrome's
@@ -340,8 +345,13 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
         }
 
         /// <summary>
-        /// Runs <paramref name="create"/> and hands back the session it
-        /// gives.
+        /// Runs <paramref name="create"/> and, when the browser or its
+        /// driver did not start, runs it again up to
+        /// <see cref="SessionStartAttempts"/> times, waiting
+        /// <see cref="SessionRetryDelaySeconds"/> seconds between attempts.
+        /// What stops the last attempt travels on as it is, so a test
+        /// reports the error it would report without this, and each earlier
+        /// failure is written to the test's output.
         /// </summary>
         /// <typeparam name="T">What is created.</typeparam>
         /// <param name="browser">Name of the browser, for the output.</param>
@@ -357,8 +367,37 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
             {
                 throw new ArgumentNullException(nameof(create));
             }
-            return create();
+            for (var attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    return create();
+                }
+                catch (Exception e) when (
+                    attempt < SessionStartAttempts && IsAStartFailure(e))
+                {
+                    Console.WriteLine(
+                        $"{browser} did not start on attempt {attempt} of "
+                        + $"{SessionStartAttempts}, so it is asked again in "
+                        + $"{SessionRetryDelaySeconds} s. "
+                        + FirstLine(e.Message));
+                    Thread.Sleep(
+                        TimeSpan.FromSeconds(SessionRetryDelaySeconds));
+                }
+            }
         }
+
+        /// <summary>
+        /// True when what stopped an attempt says the browser or its driver
+        /// did not start. Selenium reports a session it could not create as
+        /// an InvalidOperationException and a driver service that would not
+        /// run as a WebDriverException, and the one call this wraps raises
+        /// neither for any other reason.
+        /// </summary>
+        /// <param name="e">What stopped the attempt.</param>
+        /// <returns>True when another attempt is worth making.</returns>
+        private static bool IsAStartFailure(Exception e) =>
+            e is WebDriverException || e is InvalidOperationException;
 
         /// <summary>
         /// Runs <paramref name="start"/> the first time a browser is asked
