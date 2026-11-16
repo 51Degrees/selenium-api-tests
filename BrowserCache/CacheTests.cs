@@ -93,14 +93,23 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.BrowserCache
         }
 
         /// <summary>
-        /// Browser cache behaviour in Edge.
+        /// Browser cache behaviour in Edge, where Edge exists at all.
+        /// Microsoft publishes no Edge for ARM64 Linux, so there the test
+        /// says so and skips.
         /// </summary>
         [TestMethod]
         public void JavaScript_BrowserCache_Edge()
         {
             var options = new EdgeOptions();
 
-            driver = BrowserDrivers.CreateEdge(options);
+            try
+            {
+                driver = BrowserDrivers.CreateEdge(options);
+            }
+            catch (WebDriverException e) when (BrowserDrivers.IsLinuxArm64)
+            {
+                Assert.Inconclusive(e.Message);
+            }
 
             RunTest(driver);
         }
