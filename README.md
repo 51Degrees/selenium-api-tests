@@ -38,8 +38,11 @@ Select a subset with `--filter TestCategory=Contract` or
   Firefox are each started once, before the first test that uses them, and
   every Chrome and Firefox session, that first start included, gives each
   command up to 300 seconds, because a start on a fresh or busy runner can take
-  longer than the driver's default of 60 seconds. The first start's time is
-  written to that test's output.
+  longer than the driver's default of 60 seconds. A session on a Selenium grid
+  gets the same 300 seconds. The first start's time is written to that test's
+  output. Every Chrome is given `--no-sandbox` and `--disable-dev-shm-usage`,
+  so a test does not add them itself, and the Chrome and Firefox drivers start
+  quietly, with no start up banner, no verbose log and no console window.
 
 ## Configuration
 

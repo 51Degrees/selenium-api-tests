@@ -76,8 +76,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Selenium
         {
             var options = new ChromeOptions();
             options.AddArgument("--headless");
-            options.AddArgument("--no-sandbox");
-            options.AddArgument("--disable-dev-shm-usage");
             _driver = BrowserDrivers.CreateChrome(options);
             AssertPageRan();
         }

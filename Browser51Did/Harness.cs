@@ -13,7 +13,6 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Firefox;
-using OpenQA.Selenium.Remote;
 
 namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Browser51Did;
 
@@ -654,8 +653,7 @@ public static class Harness
     {
         var options = new ChromeOptions();
         options.AddArgument("--headless=new");
-        options.AddArgument("--no-sandbox");
-        options.AddArgument("--disable-dev-shm-usage");
+        BrowserDrivers.AddChromeArguments(options);
         options.AddArgument(
             "--host-resolver-rules="
             + $"MAP {SiteA} 127.0.0.1,MAP {SiteB} 127.0.0.1");
@@ -724,19 +722,24 @@ public static class Harness
     /// A local browser, or one on the Selenium grid SELENIUM_URL names,
     /// which is how every browser in this suite is started. A grid has to
     /// share this machine's network, because the site names resolve to
-    /// 127.0.0.1 inside the browser.
+    /// 127.0.0.1 inside the browser. Either way the session has
+    /// <see cref="BrowserDrivers.SessionTimeoutSeconds"/> for each command,
+    /// and a local one a quiet driver service.
     /// </summary>
     private static IWebDriver Start(DriverOptions options)
     {
         if (ExternalSeleniumHelper.IsExternalSelenium(out var seleniumUrl))
         {
             ExternalSeleniumHelper.AddExternalSeleniumArguments(options);
-            return new RemoteWebDriver(new Uri(seleniumUrl), options);
+            return BrowserDrivers.CreateRemote(new Uri(seleniumUrl), options);
         }
+        var limit = TimeSpan.FromSeconds(BrowserDrivers.SessionTimeoutSeconds);
         return options switch
         {
-            ChromeOptions chrome => new ChromeDriver(chrome),
-            FirefoxOptions firefox => new FirefoxDriver(firefox),
+            ChromeOptions chrome => new ChromeDriver(
+                BrowserDrivers.ChromeService(null), chrome, limit),
+            FirefoxOptions firefox => new FirefoxDriver(
+                BrowserDrivers.FirefoxService(null), firefox, limit),
             _ => throw new ArgumentOutOfRangeException(
                 nameof(options),
                 $"{options.GetType().Name} is not a browser these tests use."),
