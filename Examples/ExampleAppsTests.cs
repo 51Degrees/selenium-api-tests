@@ -109,11 +109,16 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                 + "_51DEGREES_RESOURCE_KEY_51DID, so the key the suite "
                 + "hands over is the one used");
             Assert.AreEqual("key", env["51DEGREES_RESOURCE_KEY"],
-                "released versions of the demo read the older name");
+                "older versions of the demo read the older name");
             Assert.AreEqual(
                 "https://cloud.example.test/api/v4/",
                 env["_51DEGREES_CLOUD_ENDPOINT"],
                 "the demo reads the endpoint from this name first");
+            Assert.AreEqual(
+                "https://cloud.example.test/api/v4/",
+                env["51DEGREES_CLOUD_ENDPOINT"],
+                "older versions of the demo read the endpoint from the "
+                + "older name");
         }
     }
 }

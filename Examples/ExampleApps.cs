@@ -176,7 +176,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                         // then the CI name _51DEGREES_RESOURCE_KEY_51DID,
                         // which a CI run may hold, before the older names.
                         // Setting the _51DEGREES_ names makes the key the
-                        // suite hands over the one the demo uses. Released
+                        // suite hands over the one the demo uses. Older
                         // versions read only the older names, so both are set.
                         ["_51DEGREES_RESOURCE_KEY"] = o.ResourceKey,
                         ["51DEGREES_RESOURCE_KEY"] = o.ResourceKey,
