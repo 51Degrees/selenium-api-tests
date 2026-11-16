@@ -222,8 +222,9 @@ public class PmpAcceptanceTests : Browser51DidTestBase
         Harness.Until(
             () => visitor.SharedStoreRequests()
                 .Any(r => r.Method == "POST" && r.Done && r.Status == 200),
-            $"the choice was shared from {Harness.SiteA} in {browser}. The "
-            + $"console said: {string.Join(" | ", visitor.Console())}");
+            () => $"the choice was shared from {Harness.SiteA} in "
+                + $"{browser}. The console said: "
+                + string.Join(" | ", visitor.Console()));
 
         // Site B, a first visit, in the same browser.
         visitor.Go(Harness.SiteB, Routes.Common);
@@ -232,34 +233,47 @@ public class PmpAcceptanceTests : Browser51DidTestBase
 
         // The read can still be in flight when the first client round ends,
         // because the two calls are separate and a remote cloud answers
-        // them in its own time.
+        // them in its own time. The page's recorder marks a fetch done when
+        // its headers arrive and fills in the body afterwards, so the wait
+        // is for the body. A failed request, or a status other than 200,
+        // ends the wait too, because neither will ever carry the choice and
+        // the assertion below then says what came back.
+        static bool Answered(RecordedRequest r)
+            => r.Method == "GET"
+                && r.Done
+                && (r.Response.Length > 0
+                    || r.Error != null
+                    || r.Status != 200);
         Harness.Until(
-            () => visitor.SharedStoreRequests()
-                .Any(r => r.Method == "GET" && r.Done),
-            "PMP asked the shared store what this visitor already chose in "
-            + $"{browser}. The requests were: "
-            + string.Join(" || ",
-                visitor.Requests().Select(r => r.ToString())));
-        var read = visitor.SharedStoreRequests()
-            .First(r => r.Method == "GET" && r.Done);
+            () => visitor.SharedStoreRequests().Any(Answered),
+            () => "the shared store answered PMP's question about what this "
+                + $"visitor already chose in {browser}. The requests were: "
+                + string.Join(" || ",
+                    visitor.Requests().Select(r => r.ToString())));
+        var read = visitor.SharedStoreRequests().First(Answered);
         Assert.IsTrue(
             read.Response.Contains("standard", StringComparison.Ordinal),
             "the shared store must answer with the choice made on the other "
-            + $"site. It answered: {Truncate(read.Response)}");
+            + $"site. It answered {read.Status}"
+            + (read.Error == null ? "" : $" with the error {read.Error}")
+            + $": {Truncate(read.Response)}");
 
-        Assert.IsTrue(
-            visitor.BubbleOnly(),
-            "a visitor who has already answered is not asked again, so only "
-            + $"the floating button shows. The dialog is: {visitor.PmpState()}"
-            + ". The console said: "
-            + string.Join(" | ", visitor.Console()));
+        // PMP shows the floating button only once it has parsed the same
+        // answer, which it reads from its own copy of the response, so it
+        // can be a moment behind the recorder.
+        Harness.Until(
+            () => visitor.BubbleOnly(),
+            () => $"only the floating button showed in {browser}, as a "
+                + "visitor who has already answered is not asked again. The "
+                + $"dialog is: {visitor.PmpState()}. The console said: "
+                + string.Join(" | ", visitor.Console()));
 
         Harness.Until(
             () => visitor.ClientRequests()
                 .Any(r => r.Done && r.Form("id.usage") == "standard"),
-            "the answer read from the shared store reached the client "
-            + $"script in {browser}. The console said: "
-            + $"{string.Join(" | ", visitor.Console())}");
+            () => "the answer read from the shared store reached the client "
+                + $"script in {browser}. The console said: "
+                + string.Join(" | ", visitor.Console()));
         var answered = visitor.ClientRequests()
             .Last(r => r.Form("id.usage") == "standard");
         Assert.AreEqual(
@@ -273,8 +287,8 @@ public class PmpAcceptanceTests : Browser51DidTestBase
         // that carried the answer.
         Harness.Until(
             () => FodId.TryParse(visitor.Identifier(), out _, out _),
-            $"the second site settled on a 51Did in {browser}. The console "
-            + $"said: {string.Join(" | ", visitor.Console())}");
+            () => $"the second site settled on a 51Did in {browser}. The "
+                + $"console said: {string.Join(" | ", visitor.Console())}");
         var identifier = visitor.Identifier();
         AssertDirect(
             identifier,
