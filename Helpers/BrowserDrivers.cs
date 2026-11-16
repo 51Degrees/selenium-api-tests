@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Edge;
@@ -84,6 +85,21 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
 
         private static readonly TimeSpan _sessionTimeout =
             TimeSpan.FromSeconds(SessionTimeoutSeconds);
+
+        /// <summary>
+        /// Attempts a browser session is given to start. A driver that
+        /// started the browser but could not reach it answers in about a
+        /// second and leaves nothing behind, and the next attempt usually
+        /// starts, so one such answer does not fail a test.
+        /// </summary>
+        public const int SessionStartAttempts = 3;
+
+        /// <summary>
+        /// Seconds between one failed start of a session and the next
+        /// attempt, which leaves the machine a moment before it is asked
+        /// again.
+        /// </summary>
+        public const int SessionRetryDelaySeconds = 2;
 
         /// <summary>
         /// Arguments every Chrome is given. --no-sandbox turns off Chrome's
@@ -169,12 +185,12 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
                 ChromeService(driverPath), options, timeout)));
             if (driverPath != null)
             {
-                return new ChromeDriver(
-                    ChromeService(driverPath), options, _sessionTimeout);
+                return Retried("Chrome", () => new ChromeDriver(
+                    ChromeService(driverPath), options, _sessionTimeout));
             }
             return Fetched(
-                () => new ChromeDriver(
-                    ChromeService(null), options, _sessionTimeout),
+                () => Retried("Chrome", () => new ChromeDriver(
+                    ChromeService(null), options, _sessionTimeout)),
                 "Chrome", ChromeDriverVariable, ChromeDriverNames);
         }
 
@@ -264,12 +280,12 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
                 FirefoxService(driverPath), options, timeout)));
             if (driverPath != null)
             {
-                return new FirefoxDriver(
-                    FirefoxService(driverPath), options, _sessionTimeout);
+                return Retried("Firefox", () => new FirefoxDriver(
+                    FirefoxService(driverPath), options, _sessionTimeout));
             }
             return Fetched(
-                () => new FirefoxDriver(
-                    FirefoxService(null), options, _sessionTimeout),
+                () => Retried("Firefox", () => new FirefoxDriver(
+                    FirefoxService(null), options, _sessionTimeout)),
                 "Firefox", GeckoDriverVariable, GeckoDriverNames);
         }
 
@@ -304,12 +320,12 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
             SetBinaryLocation(options, EdgeBinaryVariable, _edgeBinaryNames);
             if (driverPath != null)
             {
-                return new EdgeDriver(
+                return Retried("Edge", () => new EdgeDriver(
                     EdgeDriverService.CreateDefaultService(driverPath),
-                    options);
+                    options));
             }
             return Fetched(
-                () => new EdgeDriver(options),
+                () => Retried("Edge", () => new EdgeDriver(options)),
                 "Edge", EdgeDriverVariable, EdgeDriverNames);
         }
 
@@ -327,6 +343,61 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
                 }
             }
         }
+
+        /// <summary>
+        /// Runs <paramref name="create"/> and, when the browser or its
+        /// driver did not start, runs it again up to
+        /// <see cref="SessionStartAttempts"/> times, waiting
+        /// <see cref="SessionRetryDelaySeconds"/> seconds between attempts.
+        /// What stops the last attempt travels on as it is, so a test
+        /// reports the error it would report without this, and each earlier
+        /// failure is written to the test's output.
+        /// </summary>
+        /// <typeparam name="T">What is created.</typeparam>
+        /// <param name="browser">Name of the browser, for the output.</param>
+        /// <param name="create">Creates the session.</param>
+        /// <returns>What <paramref name="create"/> gave.</returns>
+        public static T Retried<T>(string browser, Func<T> create)
+        {
+            if (browser == null)
+            {
+                throw new ArgumentNullException(nameof(browser));
+            }
+            if (create == null)
+            {
+                throw new ArgumentNullException(nameof(create));
+            }
+            for (var attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    return create();
+                }
+                catch (Exception e) when (
+                    attempt < SessionStartAttempts && IsAStartFailure(e))
+                {
+                    Console.WriteLine(
+                        $"{browser} did not start on attempt {attempt} of "
+                        + $"{SessionStartAttempts}, so it is asked again in "
+                        + $"{SessionRetryDelaySeconds} s. "
+                        + FirstLine(e.Message));
+                    Thread.Sleep(
+                        TimeSpan.FromSeconds(SessionRetryDelaySeconds));
+                }
+            }
+        }
+
+        /// <summary>
+        /// True when what stopped an attempt says the browser or its driver
+        /// did not start. Selenium reports a session it could not create as
+        /// an InvalidOperationException and a driver service that would not
+        /// run as a WebDriverException, and the one call this wraps raises
+        /// neither for any other reason.
+        /// </summary>
+        /// <param name="e">What stopped the attempt.</param>
+        /// <returns>True when another attempt is worth making.</returns>
+        private static bool IsAStartFailure(Exception e) =>
+            e is WebDriverException || e is InvalidOperationException;
 
         /// <summary>
         /// Runs <paramref name="start"/> the first time a browser is asked
