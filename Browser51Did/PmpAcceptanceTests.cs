@@ -157,11 +157,12 @@ public class PmpAcceptanceTests : Browser51DidTestBase
             Usage.Standard,
             UsageOf(identifier, "the answer was standard"),
             "the visitor pressed standard.");
-        var answeredResponse = visitor.ResponseOf(answered);
+        var settled = visitor.Settled(answered);
         Assert.IsTrue(
-            answeredResponse.Contains("fodid", StringComparison.Ordinal),
+            settled.Response.Contains("fodid", StringComparison.Ordinal),
             "the response to the answered request must carry the identifier "
-            + $"section. It was: {Truncate(answeredResponse)}");
+            + $"section. It answered {settled.Outcome}: "
+            + Truncate(settled.Response));
 
         // Nothing loaded a second copy of the client script.
         Assert.AreEqual(
@@ -255,9 +256,7 @@ public class PmpAcceptanceTests : Browser51DidTestBase
         Assert.IsTrue(
             read.Response.Contains("standard", StringComparison.Ordinal),
             "the shared store must answer with the choice made on the other "
-            + $"site. It answered {read.Status}"
-            + (read.Error == null ? "" : $" with the error {read.Error}")
-            + $": {Truncate(read.Response)}");
+            + $"site. It answered {read.Outcome}: {Truncate(read.Response)}");
 
         // PMP shows the floating button only once it has parsed the same
         // answer, which it reads from its own copy of the response, so it
