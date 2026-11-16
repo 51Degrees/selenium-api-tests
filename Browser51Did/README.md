@@ -78,9 +78,9 @@ the Contract tests start an example.
 
 | Variable | Meaning |
 | --- | --- |
-| `51DEGREES_CLOUD_ENDPOINT` | The cloud, including its `api/v4` path. Handed to the demo unchanged. |
-| `51DEGREES_RESOURCE_KEY` | A resource key the cloud creates 51Dids for standard and personalized answers with. Handed to the demo under this name, and never printed, because every message a test produces has it taken out. |
-| `_51DEGREES_RESOURCE_KEY_51DID` | Read only where `51DEGREES_RESOURCE_KEY` is unset, and handed to the demo as `51DEGREES_RESOURCE_KEY`. This is the name continuous integration sets, for a resource key carrying the 51Did product. |
+| `51DEGREES_CLOUD_ENDPOINT` | The cloud, including its `api/v4` path. Handed to the demo unchanged, under each name it reads. The dotnet demo is given `_51DEGREES_CLOUD_ENDPOINT`, which it reads first, and `51DEGREES_CLOUD_ENDPOINT`, which its older versions read. |
+| `51DEGREES_RESOURCE_KEY` | A resource key the cloud creates 51Dids for standard and personalized answers with. Handed to the demo under each name it reads, `_51DEGREES_RESOURCE_KEY` and `51DEGREES_RESOURCE_KEY` for the dotnet demo, and never printed, because every message a test produces has it taken out. |
+| `_51DEGREES_RESOURCE_KEY_51DID` | Read only where `51DEGREES_RESOURCE_KEY` is unset, and handed to the demo in the same way. This is the name continuous integration sets, for a resource key carrying the 51Did product. |
 | `DEMO_LANG` | The demo to launch from the sibling checkout. `dotnet` unless set. |
 | `DEMO_URL` | A demo already running, which is used instead of launching one. |
 | `DEMO_MODE` | `cloud` unless set to `pipeline`. |
@@ -109,7 +109,7 @@ another name.
 ## Adding a demo in another language
 
 1. Copy the demo's static files and templates, and fill the same
-   placeholders from the same two variables.
+   placeholders from the resource key and the cloud endpoint.
 2. Serve every route under `/cloud/`, and under `/pipeline/` once the
    language's own web integration serves the client script, answering any
    host name, because the tests load the pages as `site-a.localtest` and

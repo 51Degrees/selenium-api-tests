@@ -57,11 +57,13 @@ public static class Harness
 
     /// <summary>
     /// The cloud, for example https://localhost:5443, with no trailing
-    /// slash, taken from 51DEGREES_CLOUD_ENDPOINT, the variable the demo is
-    /// started with. That endpoint names the api/v4 path, as every reader of
-    /// it expects, and the path is taken off here, because what the tests
-    /// ask the cloud directly they build from its root. An endpoint written
-    /// without the path is taken as the root.
+    /// slash, taken from 51DEGREES_CLOUD_ENDPOINT. The demo is started with
+    /// the same value under each name it reads, as
+    /// <see cref="Examples.ExampleApps.Demos"/> sets out. That endpoint
+    /// names the api/v4 path, as every reader of it expects, and the path
+    /// is taken off here, because what the tests ask the cloud directly
+    /// they build from its root. An endpoint written without the path is
+    /// taken as the root.
     /// </summary>
     public static string? CloudUrl
     {
@@ -81,10 +83,11 @@ public static class Harness
 
     /// <summary>
     /// The resource key the demo is started with, from
-    /// 51DEGREES_RESOURCE_KEY, the variable every language's demo reads
-    /// first, or where that is unset from _51DEGREES_RESOURCE_KEY_51DID,
-    /// the name continuous integration sets. The demo is given it as
-    /// 51DEGREES_RESOURCE_KEY either way.
+    /// 51DEGREES_RESOURCE_KEY, or where that is unset from
+    /// _51DEGREES_RESOURCE_KEY_51DID, the name continuous integration sets.
+    /// The demo is given it under each name it reads, as
+    /// <see cref="Examples.ExampleApps.Demos"/> sets out, whichever of the
+    /// two it was read from.
     /// <para>
     /// The tests that create a 51Did for a standard or personalized answer
     /// need a resource key whose products include CloudV5FODiD.
@@ -119,7 +122,7 @@ public static class Harness
         + "path, and 51DEGREES_RESOURCE_KEY, or where that is unset "
         + "_51DEGREES_RESOURCE_KEY_51DID, a resource key the cloud "
         + "creates 51Dids for standard and personalized answers with. Both "
-        + "are handed to the demo under the first names. See "
+        + "are handed to the demo under each name it reads. See "
         + "Browser51Did/README.md.";
 
     /// <summary>

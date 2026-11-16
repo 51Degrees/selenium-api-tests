@@ -151,11 +151,11 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
 
         /// <summary>
         /// Per-language demos. Each serves the same pages under the same
-        /// routes, and reads its input data from the same two variables,
-        /// 51DEGREES_RESOURCE_KEY and 51DEGREES_CLOUD_ENDPOINT, so a demo in
-        /// another language is added here and nothing else in the suite
-        /// changes. The suite always hands the key over under the runtime
-        /// name, whichever of its two names the suite read it from.
+        /// routes, and reads its input data from a resource key and a cloud
+        /// endpoint variable, so a demo in another language is added here and
+        /// nothing else in the suite changes. The suite always hands the key
+        /// over under the runtime names, whichever of its two names the suite
+        /// read it from.
         /// </summary>
         public static readonly IReadOnlyDictionary<string, ExampleDescriptor> Demos =
             new Dictionary<string, ExampleDescriptor>
@@ -172,9 +172,17 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     StartupTimeoutSeconds: 180,
                     BuildEnv: o => new Dictionary<string, string>
                     {
+                        // The demo reads the _51DEGREES_ names first and
+                        // then the CI name _51DEGREES_RESOURCE_KEY_51DID,
+                        // which a CI run may hold, before the older names.
+                        // Setting the _51DEGREES_ names makes the key the
+                        // suite hands over the one the demo uses. Older
+                        // versions read only the older names, so both are set.
+                        ["_51DEGREES_RESOURCE_KEY"] = o.ResourceKey,
                         ["51DEGREES_RESOURCE_KEY"] = o.ResourceKey,
                         // the endpoint includes the api/v4 path, as every
                         // other 51DEGREES_CLOUD_ENDPOINT reader expects
+                        ["_51DEGREES_CLOUD_ENDPOINT"] = new Uri(o.CloudEndpoint, "api/v4/").ToString(),
                         ["51DEGREES_CLOUD_ENDPOINT"] = new Uri(o.CloudEndpoint, "api/v4/").ToString(),
                         ["ASPNETCORE_URLS"] = $"http://localhost:{o.Port}",
                     }),
