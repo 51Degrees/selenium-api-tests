@@ -86,9 +86,11 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
             TimeSpan.FromSeconds(SessionTimeoutSeconds);
 
         /// <summary>
-        /// Arguments every Chrome is given, being the two the tests passed by
-        /// hand to run Chrome on the runners: no sandbox, and shared memory
-        /// kept out of /dev/shm.
+        /// Arguments every Chrome is given. --no-sandbox turns off Chrome's
+        /// sandbox, without which Chrome exits as it starts on some runners,
+        /// and --disable-dev-shm-usage makes Chrome write its shared memory
+        /// files to a temporary directory rather than /dev/shm, which is too
+        /// small in some virtual machines and containers.
         /// </summary>
         public static readonly IReadOnlyList<string> ChromeArguments =
             new[] { "--no-sandbox", "--disable-dev-shm-usage" };

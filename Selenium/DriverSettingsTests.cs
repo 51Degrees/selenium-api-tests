@@ -187,6 +187,38 @@ public class DriverSettingsTests
     }
 
     /// <summary>
+    /// The 51Did harness's local Chrome and Firefox start, load a page, and
+    /// have the session limit. Its tests need a cloud and skip without one,
+    /// so this is what starts the harness's own browsers on every runner.
+    /// </summary>
+    [TestMethod, TestCategory("Browser")]
+    public void HarnessLocalSessions_StartWithTheSessionLimit()
+    {
+        foreach (var start in new Func<IWebDriver>[]
+        {
+            () => Browser51Did.Harness.NewChrome(),
+            () => Browser51Did.Harness.NewFirefox(),
+        })
+        {
+            var driver = (WebDriver)start();
+            try
+            {
+                driver.Navigate().GoToUrl("about:blank");
+                Assert.AreEqual(
+                    TimeSpan.FromSeconds(BrowserDrivers.SessionTimeoutSeconds),
+                    Limit(driver),
+                    $"a local {driver.Capabilities.GetCapability("browserName")} "
+                    + "session the harness starts must have the session "
+                    + "limit.");
+            }
+            finally
+            {
+                driver.Quit();
+            }
+        }
+    }
+
+    /// <summary>
     /// Calls a static member of <see cref="BrowserDrivers"/> by name.
     /// </summary>
     private static object Invoke(string name, params object[] arguments)

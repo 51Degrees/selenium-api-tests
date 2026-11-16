@@ -30,8 +30,8 @@ public static class ExternalSeleniumHelper
         switch (options)
         {
             case ChromeOptions chromeOptions:
-                // The same two as BrowserDrivers.ChromeArguments, which
-                // CreateChrome has already given, so only what is missing.
+                // BrowserDrivers.ChromeArguments, each added only where the
+                // options do not carry it already.
                 BrowserDrivers.AddChromeArguments(chromeOptions);
                 break;
             case EdgeOptions  edgeOptions:
