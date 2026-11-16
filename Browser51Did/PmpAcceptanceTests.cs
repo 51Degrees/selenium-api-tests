@@ -157,10 +157,11 @@ public class PmpAcceptanceTests : Browser51DidTestBase
             Usage.Standard,
             UsageOf(identifier, "the answer was standard"),
             "the visitor pressed standard.");
+        var answeredResponse = visitor.ResponseOf(answered);
         Assert.IsTrue(
-            answered.Response.Contains("fodid", StringComparison.Ordinal),
+            answeredResponse.Contains("fodid", StringComparison.Ordinal),
             "the response to the answered request must carry the identifier "
-            + $"section. It was: {Truncate(answered.Response)}");
+            + $"section. It was: {Truncate(answeredResponse)}");
 
         // Nothing loaded a second copy of the client script.
         Assert.AreEqual(

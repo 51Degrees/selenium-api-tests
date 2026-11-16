@@ -178,6 +178,34 @@ public sealed class Visitor : IDisposable
                 "/api/v4/pmp/pref", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
+    /// <summary>
+    /// The body the page received for a request read earlier. The recorder
+    /// marks a fetch done when its headers arrive and records the body
+    /// afterwards, so an earlier copy can hold none. The request is read
+    /// again, found by its method, address and body, and waited for until
+    /// its body is recorded, it fails, or its status is not 200.
+    /// </summary>
+    public string ResponseOf(RecordedRequest request)
+    {
+        RecordedRequest? current = null;
+        Harness.Until(
+            () =>
+            {
+                current = Requests().LastOrDefault(r =>
+                    r.Method == request.Method
+                    && r.Url == request.Url
+                    && r.Body == request.Body);
+                return current != null
+                    && (current.Response.Length > 0
+                        || current.Error != null
+                        || current.Status != 200);
+            },
+            () => $"the page recorded the response to {request.Method} "
+                + $"{request.Url}. The requests were: "
+                + string.Join(" || ", Requests().Select(r => r.ToString())));
+        return current!.Response;
+    }
+
     /// <summary>Every console line, in the order they were written.</summary>
     public IReadOnlyList<string> Console()
         => JsonSerializer.Deserialize<List<ConsoleLine>>(
