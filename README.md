@@ -35,10 +35,11 @@ Select a subset with `--filter TestCategory=Contract` or
   `CHROMEWEBDRIVER`, `GECKOWEBDRIVER` or `EDGEWEBDRIVER` or found on the path.
   When the machine provides none, Selenium Manager fetches one. Set
   `SELENIUM_URL` to drive a browser on a Selenium grid instead. Chrome and
-  Firefox are each started once, before the first test that uses them, with
-  up to 300 seconds for that first start, because a browser's first start on a
-  fresh runner can take longer than the 60 seconds a test's command is given.
-  The time it took is written to that test's output.
+  Firefox are each started once, before the first test that uses them, and
+  every Chrome and Firefox session, that first start included, gives each
+  command up to 300 seconds, because a start on a fresh or busy runner can take
+  longer than the driver's default of 60 seconds. The first start's time is
+  written to that test's output.
 
 ## Configuration
 
