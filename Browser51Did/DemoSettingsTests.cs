@@ -132,4 +132,20 @@ public class DemoSettingsTests
             $"{TestConfig.DemoCloudEndpointOldVariable} is deprecated and "
             + $"{TestConfig.DemoCloudEndpointVariable} replaces it");
     }
+
+    /// <summary>
+    /// No endpoint name set fails naming both, in the order they are read.
+    /// </summary>
+    [TestMethod]
+    public void NoEndpointNameSet_TheFailureNamesBoth()
+    {
+        var config = Config();
+        var failure = Assert.ThrowsExactly<InvalidOperationException>(
+            () => _ = config.DemoCloudEndpoint);
+        StringAssert.Contains(
+            failure.Message,
+            $"'{TestConfig.DemoCloudEndpointVariable}', or where that is "
+            + $"unset '{TestConfig.DemoCloudEndpointOldVariable}'");
+        Assert.AreEqual(0, _reports.Count);
+    }
 }

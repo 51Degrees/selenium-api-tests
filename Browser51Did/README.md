@@ -5,9 +5,9 @@ that a 51Did is created only after every other piece of data is complete and
 only from an answer the visitor actually gave, with the 51Degrees Preference
 Management Platform (PMP) and the client script on a publisher's page.
 
-Twelve more need no cloud, no demo and no browser, so they run whenever the
+Thirteen more need no cloud, no demo and no browser, so they run whenever the
 category does. Six, in [RedactionTests.cs](RedactionTests.cs), prove that the
-resource key cannot reach a test report, and six, in
+resource key cannot reach a test report, and seven, in
 [DemoSettingsTests.cs](DemoSettingsTests.cs), which name the key and the
 endpoint are read from.
 
@@ -99,7 +99,7 @@ variable whose name starts with a digit. In PowerShell write
 `$env:_51DEGREES_RESOURCE_KEY = '...'`.
 
 With no endpoint name or no resource key name set, every test that needs a
-browser reports inconclusive with the reason, and the twelve that need none
+browser reports inconclusive with the reason, and the thirteen that need none
 still run. A resource key that cannot create reports inconclusive with the
 cloud's own refusal, and so does a cloud that will not hold a shared choice.
 The shared choice needs the browser to keep the cloud's `Secure`

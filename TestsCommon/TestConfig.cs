@@ -47,12 +47,13 @@ namespace FiftyOne.Pipeline.Cloud.Tests.Common
             RequireCurrentOrOld(
                 DemoCloudEndpointOldVariable, DemoCloudEndpointVariable);
 
-        // The names follow the 51Degrees naming scheme. Each starts with an
-        // underscore, because a shell cannot export a name that starts with
-        // a digit. The CI name ends with the product the key must carry,
-        // which for these tests is 51Did, because they create identifiers
-        // for standard and personalized answers. The older names are still
-        // read, after every current name.
+        // The names follow the 51Degrees naming scheme. Each current name
+        // starts with an underscore, because a shell cannot export a name
+        // that starts with a digit. The CI name ends with the product the key
+        // must carry, which for these tests is 51Did, because they create
+        // identifiers for standard and personalized answers. The two older
+        // names start with the digit and are still read, after every current
+        // name.
         public const string DemoResourceKeyVariable = "_51DEGREES_RESOURCE_KEY";
         public const string DemoResourceKeyCiVariable = "_51DEGREES_RESOURCE_KEY_51DID";
         public const string DemoResourceKeyOldVariable = "51DEGREES_RESOURCE_KEY";
