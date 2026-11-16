@@ -36,13 +36,15 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Browsers
             s_clientServer = TestHelpers.SimpleListener(s_clientServerUrl, s_cts.Token);
 
             var options = new FirefoxOptions();
-            options.AcceptInsecureCertificates = true;
-            options.AddArgument("--headless");
             try
             {
                 s_driver = BrowserDrivers.CreateFirefox(options);
             }
-            catch (WebDriverException e)
+            // A missing browser on this machine is not a fault of the
+            // test. A Selenium grid that cannot hand one out is, so its
+            // failure is not reported as inconclusive.
+            catch (WebDriverException e) when (
+                ExternalSeleniumHelper.IsExternalSelenium(out _) == false)
             {
                 Assert.Inconclusive(e.Message);
             }

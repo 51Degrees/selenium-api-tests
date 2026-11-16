@@ -94,5 +94,31 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                 "the example reads the endpoint, with its api/v4 path, "
                 + "from this name");
         }
+
+        [TestMethod]
+        public void Demos_Dotnet_SetsTheUnderscoreNames()
+        {
+            var dotnet = ExampleApps.Demos["dotnet"];
+            var env = dotnet.BuildEnv(new ExampleAppOptions(
+                Port: 5123,
+                CloudEndpoint: new Uri("https://cloud.example.test/"),
+                ResourceKey: "key",
+                ExtraEnv: new Dictionary<string, string>()));
+            Assert.AreEqual("key", env["_51DEGREES_RESOURCE_KEY"],
+                "the demo reads this name before the CI name "
+                + "_51DEGREES_RESOURCE_KEY_51DID, so the key the suite "
+                + "hands over is the one used");
+            Assert.AreEqual("key", env["51DEGREES_RESOURCE_KEY"],
+                "older versions of the demo read the older name");
+            Assert.AreEqual(
+                "https://cloud.example.test/api/v4/",
+                env["_51DEGREES_CLOUD_ENDPOINT"],
+                "the demo reads the endpoint from this name first");
+            Assert.AreEqual(
+                "https://cloud.example.test/api/v4/",
+                env["51DEGREES_CLOUD_ENDPOINT"],
+                "older versions of the demo read the endpoint from the "
+                + "older name");
+        }
     }
 }

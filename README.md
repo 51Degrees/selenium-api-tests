@@ -31,10 +31,25 @@ Select a subset with `--filter TestCategory=Contract` or
   that is already running was pointed at its data by whoever started it, so with
   `EXAMPLE_URL` set the suite needs neither `CLOUD_ROOT_URL` nor
   `PAID_RESOURCE_KEY`, which is what lets an on-premise example run `Contract`.
-- **Browser** - a driver the machine already provides is used first, named by
+- **Browser** - tests get their browsers from `Helpers/BrowserDrivers.cs`. A
+  driver the machine already provides is used first, named by
   `CHROMEWEBDRIVER`, `GECKOWEBDRIVER` or `EDGEWEBDRIVER` or found on the path.
   When the machine provides none, Selenium Manager fetches one. Set
-  `SELENIUM_URL` to drive a browser on a Selenium grid instead.
+  `SELENIUM_URL` to drive a browser on a Selenium grid instead. Chrome and
+  Firefox are each started once, before the first test that asks
+  `BrowserDrivers` for them, and every Chrome, Edge and Firefox session, that
+  first start included, gives each command up to 300 seconds, because a start
+  on a fresh or busy runner can take longer than the driver's default of 60
+  seconds. A session on a Selenium grid gets the same 300 seconds. The first
+  start's time is written to that test's output. `BrowserDrivers.Prepare`
+  runs every browser headless and accepting insecure certificates, and gives
+  every Chrome and Edge `--no-sandbox` and `--disable-dev-shm-usage`, so a test
+  sets none of these itself. The Chrome, Edge and Firefox drivers start
+  quietly, with no start up banner, no verbose log and no console window. The
+  51Did tests are the exception, as `Browser51Did/Harness.cs` starts their
+  Chrome and Firefox itself, with the same preparation, time limit and quiet
+  drivers, but leaves Selenium Manager to find or fetch the driver and makes
+  no first start.
 
 ## Configuration
 
@@ -51,8 +66,9 @@ and no keys are committed.
 | `CHROMEWEBDRIVER` / `GECKOWEBDRIVER` / `EDGEWEBDRIVER` | optional | A driver, or the directory holding one. GitHub's Linux runner images set these. |
 | `CHROME_BIN` / `FIREFOX_BIN` / `EDGE_BIN` | optional | The browser binary to drive, when it is not on the path. |
 | `EXAMPLE_URL` / `EXAMPLE_LANG` | `Contract` | The example app to test (CI / local). |
-| `51DEGREES_CLOUD_ENDPOINT` / `51DEGREES_RESOURCE_KEY` | `Browser51Did` | Handed to the demo under these names, the ones every language's demo reads first. |
-| `_51DEGREES_RESOURCE_KEY_51DID` | `Browser51Did` | Read where `51DEGREES_RESOURCE_KEY` is unset. The name CI sets, for a resource key carrying the 51Did product. |
+| `_51DEGREES_CLOUD_ENDPOINT` / `_51DEGREES_RESOURCE_KEY` | `Browser51Did` | The cloud and the resource key. Handed to the demo under each name it reads, which for the dotnet demo are these and the older names. |
+| `_51DEGREES_RESOURCE_KEY_51DID` | `Browser51Did` | Read where `_51DEGREES_RESOURCE_KEY` is unset. The name CI sets, for a resource key carrying the 51Did product. |
+| `51DEGREES_CLOUD_ENDPOINT` / `51DEGREES_RESOURCE_KEY` | `Browser51Did` | The older names, still read after every current name and reported as deprecated. |
 | `DEMO_URL` / `DEMO_LANG` / `DEMO_MODE` | `Browser51Did` | The demo to test, and `cloud` or `pipeline` pages. |
 
 A missing variable only fails the tests that read it, and the failure names the

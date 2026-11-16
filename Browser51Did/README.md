@@ -5,11 +5,11 @@ that a 51Did is created only after every other piece of data is complete and
 only from an answer the visitor actually gave, with the 51Degrees Preference
 Management Platform (PMP) and the client script on a publisher's page.
 
-Nine more need no cloud, no demo and no browser, so they run whenever the
+Thirteen more need no cloud, no demo and no browser, so they run whenever the
 category does. Six, in [RedactionTests.cs](RedactionTests.cs), prove that the
-resource key cannot reach a test report, and three, in
-[DemoSettingsTests.cs](DemoSettingsTests.cs), which of its two names the key
-is read from.
+resource key cannot reach a test report, and seven, in
+[DemoSettingsTests.cs](DemoSettingsTests.cs), which name the key and the
+endpoint are read from.
 
 They drive a **demo**, a small web app that serves every page the tests
 load. The dotnet demo is `examples/device-detection/Cloud/pmp-web` in
@@ -78,27 +78,28 @@ the Contract tests start an example.
 
 | Variable | Meaning |
 | --- | --- |
-| `51DEGREES_CLOUD_ENDPOINT` | The cloud, including its `api/v4` path. Handed to the demo unchanged. |
-| `51DEGREES_RESOURCE_KEY` | A resource key the cloud creates 51Dids for standard and personalized answers with. Handed to the demo under this name, and never printed, because every message a test produces has it taken out. |
-| `_51DEGREES_RESOURCE_KEY_51DID` | Read only where `51DEGREES_RESOURCE_KEY` is unset, and handed to the demo as `51DEGREES_RESOURCE_KEY`. This is the name continuous integration sets, for a resource key carrying the 51Did product. |
+| `_51DEGREES_CLOUD_ENDPOINT` | The cloud, including its `api/v4` path. Handed to the demo unchanged, under each name it reads. The dotnet demo is given `_51DEGREES_CLOUD_ENDPOINT`, which it reads first, and `51DEGREES_CLOUD_ENDPOINT`, which its older versions read. |
+| `_51DEGREES_RESOURCE_KEY` | A resource key the cloud creates 51Dids for standard and personalized answers with. Handed to the demo under each name it reads, `_51DEGREES_RESOURCE_KEY` and `51DEGREES_RESOURCE_KEY` for the dotnet demo, and never printed, because every message a test produces has it taken out. |
+| `_51DEGREES_RESOURCE_KEY_51DID` | Read only where `_51DEGREES_RESOURCE_KEY` is unset, and handed to the demo in the same way. This is the name continuous integration sets, for a resource key carrying the 51Did product. |
+| `51DEGREES_CLOUD_ENDPOINT` / `51DEGREES_RESOURCE_KEY` | The older names, still read after every current name, with one sentence on the error stream saying each is deprecated and which name replaces it. |
 | `DEMO_LANG` | The demo to launch from the sibling checkout. `dotnet` unless set. |
 | `DEMO_URL` | A demo already running, which is used instead of launching one. |
 | `DEMO_MODE` | `cloud` unless set to `pipeline`. |
 | `CLOUD_ROOT_URL` | Not used by these tests, but the suite's assembly set up requires it. |
 
 ```bash
-env CLOUD_ROOT_URL="http://localhost:5050/" \
-    51DEGREES_CLOUD_ENDPOINT="http://localhost:5050/api/v4/" \
-    51DEGREES_RESOURCE_KEY="<a key that creates 51Dids>" \
-    dotnet test --filter TestCategory=Browser51Did
+CLOUD_ROOT_URL="http://localhost:5050/" \
+_51DEGREES_CLOUD_ENDPOINT="http://localhost:5050/api/v4/" \
+_51DEGREES_RESOURCE_KEY="<a key that creates 51Dids>" \
+dotnet test --filter TestCategory=Browser51Did
 ```
 
-`env` is used because bash cannot export a variable whose name starts with a
-digit, which is also why the name continuous integration sets starts with an
-underscore. In PowerShell write `${env:51DEGREES_RESOURCE_KEY} = '...'`.
+Every current name starts with an underscore, because bash cannot export a
+variable whose name starts with a digit. In PowerShell write
+`$env:_51DEGREES_RESOURCE_KEY = '...'`.
 
-With the endpoint or both resource key names unset every test that needs a
-browser reports inconclusive with the reason, and the nine that need none
+With no endpoint name or no resource key name set, every test that needs a
+browser reports inconclusive with the reason, and the thirteen that need none
 still run. A resource key that cannot create reports inconclusive with the
 cloud's own refusal, and so does a cloud that will not hold a shared choice.
 The shared choice needs the browser to keep the cloud's `Secure`
@@ -109,7 +110,7 @@ another name.
 ## Adding a demo in another language
 
 1. Copy the demo's static files and templates, and fill the same
-   placeholders from the same two variables.
+   placeholders from the resource key and the cloud endpoint.
 2. Serve every route under `/cloud/`, and under `/pipeline/` once the
    language's own web integration serves the client script, answering any
    host name, because the tests load the pages as `site-a.localtest` and

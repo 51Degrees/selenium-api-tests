@@ -102,10 +102,11 @@ public class ConsentPlatformAcceptanceTests : Browser51DidTestBase
             () => visitor.Identifier() != "",
             "an identifier came back once the answer had been decoded. The "
             + "console said: " + string.Join(" | ", visitor.Console()));
+        var settled = visitor.Settled(second);
         Assert.IsTrue(
-            second.Response.Contains("fodid", StringComparison.Ordinal),
+            settled.Response.Contains("fodid", StringComparison.Ordinal),
             "the response to the request carrying the string must carry the "
-            + "identifier section.");
+            + $"identifier section. It answered {settled.Outcome}.");
         AssertFromConsentString(
             visitor.Identifier(),
             "the usage was decoded from the framework string",

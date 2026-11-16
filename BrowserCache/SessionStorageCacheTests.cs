@@ -135,8 +135,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.BrowserCache
         public void SessionStorageCache_Chrome(bool enableCookies)
         {
             var options = new ChromeOptions();
-            options.AcceptInsecureCertificates = true;
-            options.AddArgument("--headless");
 
             driver = BrowserDrivers.CreateChrome(options);
 
@@ -152,8 +150,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.BrowserCache
         public void SessionStorageCache_FireFox(bool enableCookies)
         {
             var options = new FirefoxOptions();
-            options.AcceptInsecureCertificates = true;
-            options.AddArgument("--headless");
 
             driver = BrowserDrivers.CreateFirefox(options);
 

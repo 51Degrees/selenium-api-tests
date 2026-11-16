@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
+using OpenQA.Selenium.Chromium;
 using OpenQA.Selenium.Edge;
 using OpenQA.Selenium.Firefox;
 using OpenQA.Selenium.Remote;
@@ -65,6 +68,49 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
         /// </summary>
         public const string EdgeDriverVariable = "EDGEWEBDRIVER";
 
+        /// <summary>
+        /// Seconds the first start of a browser in a run may take. A
+        /// browser's first start on a fresh runner can take minutes, where
+        /// the driver allows each command 60 seconds, so the first start is
+        /// made by <see cref="StartOnce"/> with this limit instead.
+        /// </summary>
+        public const int FirstStartTimeoutSeconds = 300;
+
+        /// <summary>
+        /// Seconds each command of every local Chrome and Firefox session, and
+        /// of every remote session, may take, its start included. A later
+        /// start can take as long as a first, so every session has the first
+        /// start's limit in place of the driver's 60 seconds.
+        /// </summary>
+        public const int SessionTimeoutSeconds = FirstStartTimeoutSeconds;
+
+        private static readonly TimeSpan _sessionTimeout =
+            TimeSpan.FromSeconds(SessionTimeoutSeconds);
+
+        /// <summary>
+        /// Arguments every Chrome and Edge is given. --no-sandbox turns off
+        /// the browser's sandbox, without which Chrome exits as it starts on
+        /// some runners, and --disable-dev-shm-usage makes the browser write
+        /// its shared memory files to a temporary directory rather than
+        /// /dev/shm, which is too small in some virtual machines and
+        /// containers.
+        /// </summary>
+        public static readonly IReadOnlyList<string> ChromeArguments =
+            new[] { "--no-sandbox", "--disable-dev-shm-usage" };
+
+        /// <summary>
+        /// The argument that starts Chrome, Edge and Firefox without a window.
+        /// </summary>
+        public const string HeadlessArgument = "--headless";
+
+        /// <summary>Page the first start of a browser loads.</summary>
+        private const string FirstStartPage = "about:blank";
+
+        private static readonly object _firstStartLock = new object();
+
+        private static readonly Dictionary<string, string> _firstStarts =
+            new Dictionary<string, string>();
+
         /// <summary>Path to the Chrome or Chromium binary to drive.</summary>
         public const string ChromeBinaryVariable = "CHROME_BIN";
 
@@ -109,7 +155,47 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
             && RuntimeInformation.ProcessArchitecture == Architecture.Arm64;
 
         /// <summary>
-        /// Creates a Chrome or Chromium driver.
+        /// Gives options what every browser in the suite has. Every browser
+        /// runs headless and accepts insecure certificates, and Chrome and
+        /// Edge get <see cref="ChromeArguments"/>. A headless argument the
+        /// caller chose, such as --headless=new, is kept and not joined by a
+        /// second, and calling this again adds nothing. Selenium offers no way
+        /// to read back a Firefox argument, so Firefox is given
+        /// <see cref="HeadlessArgument"/> whatever it holds, and a second
+        /// headless argument there changes nothing.
+        /// </summary>
+        /// <param name="options">Options for the browser.</param>
+        public static void Prepare(DriverOptions options)
+        {
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+            options.AcceptInsecureCertificates = true;
+            switch (options)
+            {
+                case ChromiumOptions chromium:
+                    if (chromium.Arguments.Any(a => a.StartsWith(
+                        HeadlessArgument, StringComparison.Ordinal)) == false)
+                    {
+                        chromium.AddArgument(HeadlessArgument);
+                    }
+                    AddChromeArguments(chromium);
+                    break;
+                case FirefoxOptions firefox:
+                    firefox.AddArgument(HeadlessArgument);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(
+                        nameof(options),
+                        $"{options.GetType().Name} is not a browser these "
+                        + "tests use.");
+            }
+        }
+
+        /// <summary>
+        /// Creates a Chrome or Chromium driver, with the options given what
+        /// <see cref="Prepare"/> gives.
         /// </summary>
         /// <param name="options">Options for the browser.</param>
         /// <returns>A driver, which the caller quits.</returns>
@@ -119,25 +205,113 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
             {
                 throw new ArgumentNullException(nameof(options));
             }
+            Prepare(options);
             if (TryCreateRemote(options, out var remote))
             {
                 return remote;
             }
             SetBinaryLocation(options, ChromeBinaryVariable, _chromeBinaryNames);
             var driverPath = FindDriver(ChromeDriverVariable, ChromeDriverNames);
+            StartOnce("Chrome", timeout => Visit(new ChromeDriver(
+                ChromeService(driverPath), options, timeout)));
             if (driverPath != null)
             {
                 return new ChromeDriver(
-                    ChromeDriverService.CreateDefaultService(driverPath),
-                    options);
+                    ChromeService(driverPath), options, _sessionTimeout);
             }
             return Fetched(
-                () => new ChromeDriver(options),
+                () => new ChromeDriver(
+                    ChromeService(null), options, _sessionTimeout),
                 "Chrome", ChromeDriverVariable, ChromeDriverNames);
         }
 
         /// <summary>
-        /// Creates a Firefox driver.
+        /// Adds each of <see cref="ChromeArguments"/> that the Chrome or Edge
+        /// options do not already carry, so an argument a caller set is not
+        /// given twice.
+        /// </summary>
+        /// <param name="options">Options for the browser.</param>
+        public static void AddChromeArguments(ChromiumOptions options)
+        {
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+            foreach (var argument in ChromeArguments)
+            {
+                if (options.Arguments.Contains(argument) == false)
+                {
+                    options.AddArgument(argument);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A Chrome driver service that writes no verbose or appended log,
+        /// prints no start up banner and opens no console window.
+        /// </summary>
+        /// <param name="driverPath">
+        /// The driver this machine provides, or null to leave Selenium Manager
+        /// to fetch one.
+        /// </param>
+        /// <returns>The service, which the driver created with it owns.</returns>
+        internal static ChromeDriverService ChromeService(string driverPath)
+        {
+            var service = driverPath != null
+                ? ChromeDriverService.CreateDefaultService(driverPath)
+                : ChromeDriverService.CreateDefaultService();
+            service.EnableVerboseLogging = false;
+            service.EnableAppendLog = false;
+            Quieten(service);
+            return service;
+        }
+
+        /// <summary>
+        /// An Edge driver service as quiet as <see cref="ChromeService"/>.
+        /// </summary>
+        /// <param name="driverPath">
+        /// The driver this machine provides, or null to leave Selenium Manager
+        /// to fetch one.
+        /// </param>
+        /// <returns>The service, which the driver created with it owns.</returns>
+        internal static EdgeDriverService EdgeService(string driverPath)
+        {
+            var service = driverPath != null
+                ? EdgeDriverService.CreateDefaultService(driverPath)
+                : EdgeDriverService.CreateDefaultService();
+            service.EnableVerboseLogging = false;
+            service.EnableAppendLog = false;
+            Quieten(service);
+            return service;
+        }
+
+        /// <summary>
+        /// A Firefox driver service that prints no start up banner and opens
+        /// no console window.
+        /// </summary>
+        /// <param name="driverPath">
+        /// The driver this machine provides, or null to leave Selenium Manager
+        /// to fetch one.
+        /// </param>
+        /// <returns>The service, which the driver created with it owns.</returns>
+        internal static FirefoxDriverService FirefoxService(string driverPath)
+        {
+            var service = driverPath != null
+                ? FirefoxDriverService.CreateDefaultService(driverPath)
+                : FirefoxDriverService.CreateDefaultService();
+            Quieten(service);
+            return service;
+        }
+
+        private static void Quieten(DriverService service)
+        {
+            service.SuppressInitialDiagnosticInformation = true;
+            service.HideCommandPromptWindow = true;
+        }
+
+        /// <summary>
+        /// Creates a Firefox driver, with the options given what
+        /// <see cref="Prepare"/> gives.
         /// </summary>
         /// <param name="options">Options for the browser.</param>
         /// <returns>A driver, which the caller quits.</returns>
@@ -147,6 +321,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
             {
                 throw new ArgumentNullException(nameof(options));
             }
+            Prepare(options);
             if (TryCreateRemote(options, out var remote))
             {
                 return remote;
@@ -154,19 +329,24 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
             SetBinaryLocation(
                 options, FirefoxBinaryVariable, _firefoxBinaryNames);
             var driverPath = FindDriver(GeckoDriverVariable, GeckoDriverNames);
+            StartOnce("Firefox", timeout => Visit(new FirefoxDriver(
+                FirefoxService(driverPath), options, timeout)));
             if (driverPath != null)
             {
                 return new FirefoxDriver(
-                    FirefoxDriverService.CreateDefaultService(driverPath),
-                    options);
+                    FirefoxService(driverPath), options, _sessionTimeout);
             }
             return Fetched(
-                () => new FirefoxDriver(options),
+                () => new FirefoxDriver(
+                    FirefoxService(null), options, _sessionTimeout),
                 "Firefox", GeckoDriverVariable, GeckoDriverNames);
         }
 
         /// <summary>
-        /// Creates an Edge driver.
+        /// Creates an Edge driver, with the options given what
+        /// <see cref="Prepare"/> gives, a quiet driver service and
+        /// <see cref="SessionTimeoutSeconds"/> for each command. Edge is not
+        /// started once first, as Chrome and Firefox are.
         /// </summary>
         /// <param name="options">Options for the browser.</param>
         /// <returns>A driver, which the caller quits.</returns>
@@ -176,6 +356,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
             {
                 throw new ArgumentNullException(nameof(options));
             }
+            Prepare(options);
             if (TryCreateRemote(options, out var remote))
             {
                 return remote;
@@ -193,13 +374,109 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
             if (driverPath != null)
             {
                 return new EdgeDriver(
-                    EdgeDriverService.CreateDefaultService(driverPath),
-                    options);
+                    EdgeService(driverPath), options, _sessionTimeout);
             }
             return Fetched(
-                () => new EdgeDriver(options),
+                () => new EdgeDriver(
+                    EdgeService(null), options, _sessionTimeout),
                 "Edge", EdgeDriverVariable, EdgeDriverNames);
         }
+
+        /// <summary>
+        /// The line written at the first start of each browser in this run,
+        /// by the browser's name.
+        /// </summary>
+        public static IReadOnlyDictionary<string, string> FirstStarts
+        {
+            get
+            {
+                lock (_firstStartLock)
+                {
+                    return new Dictionary<string, string>(_firstStarts);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Runs <paramref name="start"/> the first time a browser is asked
+        /// for in this run, and never again, so that the browser's slow first
+        /// start is made before the first test that uses it and not inside
+        /// one of that test's commands. Writes how long it took to the output
+        /// of the test that asked. Whatever stops the start is written and
+        /// not thrown, and the test then meets it when it starts the browser
+        /// itself.
+        /// </summary>
+        /// <param name="browser">Name of the browser.</param>
+        /// <param name="start">
+        /// Starts the browser, loads a page and quits, with the time limit
+        /// for each command it is given.
+        /// </param>
+        public static void StartOnce(string browser, Action<TimeSpan> start)
+        {
+            if (browser == null)
+            {
+                throw new ArgumentNullException(nameof(browser));
+            }
+            if (start == null)
+            {
+                throw new ArgumentNullException(nameof(start));
+            }
+            lock (_firstStartLock)
+            {
+                if (_firstStarts.ContainsKey(browser))
+                {
+                    return;
+                }
+                var watch = Stopwatch.StartNew();
+                string line;
+                try
+                {
+                    start(TimeSpan.FromSeconds(FirstStartTimeoutSeconds));
+                    line = $"Started {browser} once before its first test "
+                        + "in " + Seconds(watch) + " s.";
+                }
+                catch (Exception e)
+                {
+                    line = $"{browser} did not finish its first start in "
+                        + Seconds(watch) + " s, so the test starts it as it "
+                        + "would have. " + FirstLine(e.Message);
+                }
+                _firstStarts[browser] = line;
+                Console.WriteLine(line);
+            }
+        }
+
+        /// <summary>
+        /// Loads a page in <paramref name="driver"/> and quits it.
+        /// </summary>
+        /// <param name="driver">A driver just created.</param>
+        private static void Visit(WebDriver driver)
+        {
+            try
+            {
+                driver.Navigate().GoToUrl(FirstStartPage);
+            }
+            finally
+            {
+                driver.Quit();
+            }
+        }
+
+        /// <summary>Seconds on the watch, to one decimal place.</summary>
+        /// <param name="watch">A running watch.</param>
+        /// <returns>The seconds, written the same in every culture.</returns>
+        private static string Seconds(Stopwatch watch) =>
+            watch.Elapsed.TotalSeconds.ToString(
+                "0.0", System.Globalization.CultureInfo.InvariantCulture);
+
+        /// <summary>
+        /// The first line of <paramref name="text"/>, which for a driver's
+        /// message is the reason without the details that follow it.
+        /// </summary>
+        /// <param name="text">Text of one or more lines.</param>
+        /// <returns>The first line, or an empty string.</returns>
+        private static string FirstLine(string text) =>
+            (text ?? string.Empty).Split('\n')[0].TrimEnd('\r');
 
         /// <summary>
         /// Runs <paramref name="create"/>, which leaves Selenium Manager to
@@ -249,12 +526,23 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
             if (ExternalSeleniumHelper.IsExternalSelenium(out var seleniumUrl))
             {
                 ExternalSeleniumHelper.AddExternalSeleniumArguments(options);
-                driver = new RemoteWebDriver(new Uri(seleniumUrl), options);
+                driver = CreateRemote(new Uri(seleniumUrl), options);
                 return true;
             }
             driver = null;
             return false;
         }
+
+        /// <summary>
+        /// Creates a session on the remote Selenium at <paramref name="url"/>,
+        /// with <see cref="SessionTimeoutSeconds"/> for each command, the
+        /// same as a local Chrome or Firefox session.
+        /// </summary>
+        /// <param name="url">The remote Selenium.</param>
+        /// <param name="options">Options for the browser.</param>
+        /// <returns>A driver, which the caller quits.</returns>
+        internal static WebDriver CreateRemote(Uri url, DriverOptions options)
+            => new RemoteWebDriver(url, options.ToCapabilities(), _sessionTimeout);
 
         /// <summary>
         /// Path to a driver this machine provides, or null when it provides

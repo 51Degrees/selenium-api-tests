@@ -13,7 +13,6 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Firefox;
-using OpenQA.Selenium.Remote;
 
 namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Browser51Did;
 
@@ -57,11 +56,14 @@ public static class Harness
 
     /// <summary>
     /// The cloud, for example https://localhost:5443, with no trailing
-    /// slash, taken from 51DEGREES_CLOUD_ENDPOINT, the variable the demo is
-    /// started with. That endpoint names the api/v4 path, as every reader of
-    /// it expects, and the path is taken off here, because what the tests
-    /// ask the cloud directly they build from its root. An endpoint written
-    /// without the path is taken as the root.
+    /// slash, taken from _51DEGREES_CLOUD_ENDPOINT, or where that is unset
+    /// from the older 51DEGREES_CLOUD_ENDPOINT. The demo is started with
+    /// the same value under each name it reads, as
+    /// <see cref="Examples.ExampleApps.Demos"/> sets out. That endpoint
+    /// names the api/v4 path, as every reader of it expects, and the path
+    /// is taken off here, because what the tests ask the cloud directly
+    /// they build from its root. An endpoint written without the path is
+    /// taken as the root.
     /// </summary>
     public static string? CloudUrl
     {
@@ -81,10 +83,12 @@ public static class Harness
 
     /// <summary>
     /// The resource key the demo is started with, from
-    /// 51DEGREES_RESOURCE_KEY, the variable every language's demo reads
-    /// first, or where that is unset from _51DEGREES_RESOURCE_KEY_51DID,
-    /// the name continuous integration sets. The demo is given it as
-    /// 51DEGREES_RESOURCE_KEY either way.
+    /// _51DEGREES_RESOURCE_KEY, or where that is unset from
+    /// _51DEGREES_RESOURCE_KEY_51DID, the name continuous integration sets,
+    /// or where both are unset from the older 51DEGREES_RESOURCE_KEY.
+    /// The demo is given it under each name it reads, as
+    /// <see cref="Examples.ExampleApps.Demos"/> sets out, whichever of the
+    /// three it was read from.
     /// <para>
     /// The tests that create a 51Did for a standard or personalized answer
     /// need a resource key whose products include CloudV5FODiD.
@@ -115,11 +119,11 @@ public static class Harness
                 string.IsNullOrEmpty(CloudUrl) ? Endpoint.Missing : null,
                 string.IsNullOrEmpty(Resource) ? ResourceKey.Missing : null,
             }.Where(missing => missing != null))
-        + " 51DEGREES_CLOUD_ENDPOINT names the cloud including its api/v4 "
-        + "path, and 51DEGREES_RESOURCE_KEY, or where that is unset "
+        + " _51DEGREES_CLOUD_ENDPOINT names the cloud including its api/v4 "
+        + "path, and _51DEGREES_RESOURCE_KEY, or where that is unset "
         + "_51DEGREES_RESOURCE_KEY_51DID, a resource key the cloud "
         + "creates 51Dids for standard and personalized answers with. Both "
-        + "are handed to the demo under the first names. See "
+        + "are handed to the demo under each name it reads. See "
         + "Browser51Did/README.md.";
 
     /// <summary>
@@ -423,7 +427,7 @@ public static class Harness
                 + "personalized both are, so nothing here would be "
                 + "testing the thing it is for. The service said: "
                 + Redacted(_marketingRefusal)
-                + " Point 51DEGREES_RESOURCE_KEY, or in continuous "
+                + " Point _51DEGREES_RESOURCE_KEY, or in continuous "
                 + "integration _51DEGREES_RESOURCE_KEY_51DID, at a "
                 + "resource key the service creates standard identifiers "
                 + "for.");
@@ -571,7 +575,7 @@ public static class Harness
             + "choice's cookie, which the cloud sets Secure and "
             + "SameSite=None. A choice cannot be carried between sites "
             + "there, so nothing here would be testing that it is. Point "
-            + "51DEGREES_CLOUD_ENDPOINT at the cloud's HTTPS listener to run "
+            + "_51DEGREES_CLOUD_ENDPOINT at the cloud's HTTPS listener to run "
             + "this.");
     }
 
@@ -649,12 +653,10 @@ public static class Harness
     {
         var options = new ChromeOptions();
         options.AddArgument("--headless=new");
-        options.AddArgument("--no-sandbox");
-        options.AddArgument("--disable-dev-shm-usage");
+        BrowserDrivers.Prepare(options);
         options.AddArgument(
             "--host-resolver-rules="
             + $"MAP {SiteA} 127.0.0.1,MAP {SiteB} 127.0.0.1");
-        options.AcceptInsecureCertificates = true;
         foreach (var argument in extraArguments)
         {
             options.AddArgument(argument);
@@ -678,8 +680,8 @@ public static class Harness
     public static IWebDriver NewFirefox(
         IReadOnlyDictionary<string, object>? preferences = null)
     {
-        var options = new FirefoxOptions { AcceptInsecureCertificates = true };
-        options.AddArgument("-headless");
+        var options = new FirefoxOptions();
+        BrowserDrivers.Prepare(options);
         options.SetPreference("network.dns.localDomains", $"{SiteA},{SiteB}");
         // Third party cookies are what the shared choice travels on, so
         // the tests state the behaviour they are written for rather than
@@ -719,19 +721,24 @@ public static class Harness
     /// A local browser, or one on the Selenium grid SELENIUM_URL names,
     /// which is how every browser in this suite is started. A grid has to
     /// share this machine's network, because the site names resolve to
-    /// 127.0.0.1 inside the browser.
+    /// 127.0.0.1 inside the browser. Either way the session has
+    /// <see cref="BrowserDrivers.SessionTimeoutSeconds"/> for each command,
+    /// and a local one a quiet driver service.
     /// </summary>
     private static IWebDriver Start(DriverOptions options)
     {
         if (ExternalSeleniumHelper.IsExternalSelenium(out var seleniumUrl))
         {
             ExternalSeleniumHelper.AddExternalSeleniumArguments(options);
-            return new RemoteWebDriver(new Uri(seleniumUrl), options);
+            return BrowserDrivers.CreateRemote(new Uri(seleniumUrl), options);
         }
+        var limit = TimeSpan.FromSeconds(BrowserDrivers.SessionTimeoutSeconds);
         return options switch
         {
-            ChromeOptions chrome => new ChromeDriver(chrome),
-            FirefoxOptions firefox => new FirefoxDriver(firefox),
+            ChromeOptions chrome => new ChromeDriver(
+                BrowserDrivers.ChromeService(null), chrome, limit),
+            FirefoxOptions firefox => new FirefoxDriver(
+                BrowserDrivers.FirefoxService(null), firefox, limit),
             _ => throw new ArgumentOutOfRangeException(
                 nameof(options),
                 $"{options.GetType().Name} is not a browser these tests use."),
@@ -745,6 +752,15 @@ public static class Harness
     /// </summary>
     public static void Until(
         Func<bool> condition, string whatWasWaitedFor)
+        => Until(condition, () => whatWasWaitedFor);
+
+    /// <summary>
+    /// As <see cref="Until(Func{bool}, string)"/>, with the message built
+    /// only when the wait gives up, so the requests or console it reports
+    /// are the page as it stood then rather than when the wait began.
+    /// </summary>
+    public static void Until(
+        Func<bool> condition, Func<string> whatWasWaitedFor)
     {
         var deadline = DateTime.UtcNow + Patience;
         while (DateTime.UtcNow < deadline)
@@ -757,7 +773,7 @@ public static class Harness
         }
         Assert.Fail(Redacted(
             $"Waited {Patience.TotalSeconds:0} seconds and "
-            + $"{whatWasWaitedFor} never happened."));
+            + $"{whatWasWaitedFor()} never happened."));
     }
 
     #endregion
