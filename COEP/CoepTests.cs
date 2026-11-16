@@ -102,8 +102,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.COEP
             }, token);
 
             var options = new ChromeOptions();
-            options.AcceptInsecureCertificates = true;
-            options.AddArgument("--headless");
             options.SetLoggingPreference(LogType.Browser, LogLevel.All);
             driver = BrowserDrivers.CreateChrome(options);
         }

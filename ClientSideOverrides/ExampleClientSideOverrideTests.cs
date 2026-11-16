@@ -75,8 +75,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
             long width, long height, double pixelRatio, string userAgent)
         {
             var chromeOptions = new ChromeOptions();
-            chromeOptions.AcceptInsecureCertificates = true;
-            chromeOptions.AddArgument("--headless");
             // disable UA client hints so the emulated user agent is used
             chromeOptions.AddArgument("--disable-features=UserAgentClientHint");
             chromeOptions.EnableMobileEmulation(new ChromiumMobileEmulationDeviceSettings

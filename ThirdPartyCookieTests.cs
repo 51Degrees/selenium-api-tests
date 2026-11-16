@@ -70,7 +70,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests
         private ChromeOptions CreateBaseOptions()
         {
             var options = new ChromeOptions();
-            options.AddArgument("--headless");
             return options;
         }
 

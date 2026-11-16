@@ -84,8 +84,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
         public void JavaScript_ClientSideOverrides()
         {
             var chromeOptions = new ChromeOptions();
-            chromeOptions.AcceptInsecureCertificates = true;
-            chromeOptions.AddArgument("--headless");
 
             chromeOptions.SetLoggingPreference(LogType.Browser, LogLevel.All);
 
