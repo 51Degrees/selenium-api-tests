@@ -75,15 +75,23 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
         public const int FirstStartTimeoutSeconds = 300;
 
         /// <summary>
-        /// Seconds each command of every Chrome and Firefox session may take,
-        /// its start included. A later start can take as long as a first, so
-        /// every session has the first start's limit in place of the driver's
-        /// 60 seconds.
+        /// Seconds each command of every local Chrome and Firefox session, and
+        /// of every remote session, may take, its start included. A later
+        /// start can take as long as a first, so every session has the first
+        /// start's limit in place of the driver's 60 seconds.
         /// </summary>
         public const int SessionTimeoutSeconds = FirstStartTimeoutSeconds;
 
         private static readonly TimeSpan _sessionTimeout =
             TimeSpan.FromSeconds(SessionTimeoutSeconds);
+
+        /// <summary>
+        /// Arguments every Chrome is given, being the two the tests passed by
+        /// hand to run Chrome on the runners: no sandbox, and shared memory
+        /// kept out of /dev/shm.
+        /// </summary>
+        public static readonly IReadOnlyList<string> ChromeArguments =
+            new[] { "--no-sandbox", "--disable-dev-shm-usage" };
 
         /// <summary>Page the first start of a browser loads.</summary>
         private const string FirstStartPage = "about:blank";
@@ -137,7 +145,8 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
             && RuntimeInformation.ProcessArchitecture == Architecture.Arm64;
 
         /// <summary>
-        /// Creates a Chrome or Chromium driver.
+        /// Creates a Chrome or Chromium driver, with
+        /// <see cref="ChromeArguments"/> added to the options.
         /// </summary>
         /// <param name="options">Options for the browser.</param>
         /// <returns>A driver, which the caller quits.</returns>
@@ -147,6 +156,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
             {
                 throw new ArgumentNullException(nameof(options));
             }
+            AddChromeArguments(options);
             if (TryCreateRemote(options, out var remote))
             {
                 return remote;
@@ -154,24 +164,80 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
             SetBinaryLocation(options, ChromeBinaryVariable, _chromeBinaryNames);
             var driverPath = FindDriver(ChromeDriverVariable, ChromeDriverNames);
             StartOnce("Chrome", timeout => Visit(new ChromeDriver(
-                driverPath != null
-                    ? ChromeDriverService.CreateDefaultService(driverPath)
-                    : ChromeDriverService.CreateDefaultService(),
-                options,
-                timeout)));
+                ChromeService(driverPath), options, timeout)));
             if (driverPath != null)
             {
                 return new ChromeDriver(
-                    ChromeDriverService.CreateDefaultService(driverPath),
-                    options,
-                    _sessionTimeout);
+                    ChromeService(driverPath), options, _sessionTimeout);
             }
             return Fetched(
                 () => new ChromeDriver(
-                    ChromeDriverService.CreateDefaultService(),
-                    options,
-                    _sessionTimeout),
+                    ChromeService(null), options, _sessionTimeout),
                 "Chrome", ChromeDriverVariable, ChromeDriverNames);
+        }
+
+        /// <summary>
+        /// Adds each of <see cref="ChromeArguments"/> that the options do not
+        /// already carry, so an argument a caller set is not given twice.
+        /// </summary>
+        /// <param name="options">Options for the browser.</param>
+        public static void AddChromeArguments(ChromeOptions options)
+        {
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+            foreach (var argument in ChromeArguments)
+            {
+                if (options.Arguments.Contains(argument) == false)
+                {
+                    options.AddArgument(argument);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A Chrome driver service that writes no verbose or appended log,
+        /// prints no start up banner and opens no console window.
+        /// </summary>
+        /// <param name="driverPath">
+        /// The driver this machine provides, or null to leave Selenium Manager
+        /// to fetch one.
+        /// </param>
+        /// <returns>The service, which the driver created with it owns.</returns>
+        internal static ChromeDriverService ChromeService(string driverPath)
+        {
+            var service = driverPath != null
+                ? ChromeDriverService.CreateDefaultService(driverPath)
+                : ChromeDriverService.CreateDefaultService();
+            service.EnableVerboseLogging = false;
+            service.EnableAppendLog = false;
+            Quieten(service);
+            return service;
+        }
+
+        /// <summary>
+        /// A Firefox driver service that prints no start up banner and opens
+        /// no console window.
+        /// </summary>
+        /// <param name="driverPath">
+        /// The driver this machine provides, or null to leave Selenium Manager
+        /// to fetch one.
+        /// </param>
+        /// <returns>The service, which the driver created with it owns.</returns>
+        internal static FirefoxDriverService FirefoxService(string driverPath)
+        {
+            var service = driverPath != null
+                ? FirefoxDriverService.CreateDefaultService(driverPath)
+                : FirefoxDriverService.CreateDefaultService();
+            Quieten(service);
+            return service;
+        }
+
+        private static void Quieten(DriverService service)
+        {
+            service.SuppressInitialDiagnosticInformation = true;
+            service.HideCommandPromptWindow = true;
         }
 
         /// <summary>
@@ -193,31 +259,23 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
                 options, FirefoxBinaryVariable, _firefoxBinaryNames);
             var driverPath = FindDriver(GeckoDriverVariable, GeckoDriverNames);
             StartOnce("Firefox", timeout => Visit(new FirefoxDriver(
-                driverPath != null
-                    ? FirefoxDriverService.CreateDefaultService(driverPath)
-                    : FirefoxDriverService.CreateDefaultService(),
-                options,
-                timeout)));
+                FirefoxService(driverPath), options, timeout)));
             if (driverPath != null)
             {
                 return new FirefoxDriver(
-                    FirefoxDriverService.CreateDefaultService(driverPath),
-                    options,
-                    _sessionTimeout);
+                    FirefoxService(driverPath), options, _sessionTimeout);
             }
             return Fetched(
                 () => new FirefoxDriver(
-                    FirefoxDriverService.CreateDefaultService(),
-                    options,
-                    _sessionTimeout),
+                    FirefoxService(null), options, _sessionTimeout),
                 "Firefox", GeckoDriverVariable, GeckoDriverNames);
         }
 
         /// <summary>
-        /// Creates an Edge driver. Edge is not started once first, and its
-        /// sessions keep the driver's 60 second limit, as Chrome's and
-        /// Firefox's do not, because headless Edge on the Ubuntu runners hangs
-        /// on its first page, which would hold the run for the whole of
+        /// Creates an Edge driver. Edge is not started once first, and a
+        /// local Edge session keeps the driver's 60 second limit, as Chrome's
+        /// and Firefox's do not, because headless Edge on the Ubuntu runners
+        /// hangs on its first page, which would hold the run for the whole of
         /// <see cref="FirstStartTimeoutSeconds"/>.
         /// </summary>
         /// <param name="options">Options for the browser.</param>
@@ -397,12 +455,23 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
             if (ExternalSeleniumHelper.IsExternalSelenium(out var seleniumUrl))
             {
                 ExternalSeleniumHelper.AddExternalSeleniumArguments(options);
-                driver = new RemoteWebDriver(new Uri(seleniumUrl), options);
+                driver = CreateRemote(new Uri(seleniumUrl), options);
                 return true;
             }
             driver = null;
             return false;
         }
+
+        /// <summary>
+        /// Creates a session on the remote Selenium at <paramref name="url"/>,
+        /// with <see cref="SessionTimeoutSeconds"/> for each command, the
+        /// same as a local Chrome or Firefox session.
+        /// </summary>
+        /// <param name="url">The remote Selenium.</param>
+        /// <param name="options">Options for the browser.</param>
+        /// <returns>A driver, which the caller quits.</returns>
+        internal static WebDriver CreateRemote(Uri url, DriverOptions options)
+            => new RemoteWebDriver(url, options.ToCapabilities(), _sessionTimeout);
 
         /// <summary>
         /// Path to a driver this machine provides, or null when it provides

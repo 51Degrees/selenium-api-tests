@@ -30,8 +30,9 @@ public static class ExternalSeleniumHelper
         switch (options)
         {
             case ChromeOptions chromeOptions:
-                chromeOptions.AddArgument(noSandboxArgument);
-                chromeOptions.AddArgument(disableDevShmUsageArgument);
+                // The same two as BrowserDrivers.ChromeArguments, which
+                // CreateChrome has already given, so only what is missing.
+                BrowserDrivers.AddChromeArguments(chromeOptions);
                 break;
             case EdgeOptions  edgeOptions:
                 edgeOptions.AddArgument(noSandboxArgument);
