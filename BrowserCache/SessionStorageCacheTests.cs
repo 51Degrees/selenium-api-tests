@@ -46,7 +46,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.BrowserCache
                 return;
             }
 
-            // An example that is already running (EXAMPLE_URL) was pointed at
+            // An example that is already running (_51DEGREES_EXAMPLE_URL) was pointed at
             // its cloud and given its key by whoever started it, so neither is
             // required here. One this suite launches needs both, and a missing
             // one fails this class naming the variable.
@@ -135,8 +135,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.BrowserCache
         public void SessionStorageCache_Chrome(bool enableCookies)
         {
             var options = new ChromeOptions();
-            options.AcceptInsecureCertificates = true;
-            options.AddArgument("--headless");
 
             driver = BrowserDrivers.CreateChrome(options);
 
@@ -152,8 +150,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.BrowserCache
         public void SessionStorageCache_FireFox(bool enableCookies)
         {
             var options = new FirefoxOptions();
-            options.AcceptInsecureCertificates = true;
-            options.AddArgument("--headless");
 
             driver = BrowserDrivers.CreateFirefox(options);
 

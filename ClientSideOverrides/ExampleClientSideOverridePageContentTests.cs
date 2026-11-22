@@ -54,7 +54,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
             }
             _example = app;
 
-            // An example that is already running (EXAMPLE_URL) was pointed at
+            // An example that is already running (_51DEGREES_EXAMPLE_URL) was pointed at
             // its cloud and given its key by whoever started it, so neither is
             // required here. One this suite launches needs both, and a missing
             // one fails this test naming the variable.
@@ -90,8 +90,6 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ClientSideOverrides
             long width, long height, double pixelRatio, string userAgent)
         {
             var chromeOptions = new ChromeOptions();
-            chromeOptions.AcceptInsecureCertificates = true;
-            chromeOptions.AddArgument("--headless");
             // disable UA client hints so the emulated user agent is used
             chromeOptions.AddArgument("--disable-features=UserAgentClientHint");
             chromeOptions.EnableMobileEmulation(new ChromiumMobileEmulationDeviceSettings

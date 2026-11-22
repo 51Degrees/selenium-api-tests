@@ -38,7 +38,6 @@ public class SessionLimitTests
     public void Chrome_EverySessionHasTheFirstStartLimit()
     {
         var options = new ChromeOptions();
-        options.AddArgument("--headless");
         AssertEverySessionLimit(
             "Chrome", () => BrowserDrivers.CreateChrome(options));
     }
@@ -50,7 +49,6 @@ public class SessionLimitTests
     public void Firefox_EverySessionHasTheFirstStartLimit()
     {
         var options = new FirefoxOptions();
-        options.AddArgument("--headless");
         AssertEverySessionLimit(
             "Firefox", () => BrowserDrivers.CreateFirefox(options));
     }
