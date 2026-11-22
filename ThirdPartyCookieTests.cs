@@ -74,7 +74,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests
         }
 
         /// <summary>
-        /// Creates the driver, using the remote Selenium grid when SELENIUM_URL is set
+        /// Creates the driver, using the remote Selenium grid when _51DEGREES_SELENIUM_URL is set
         /// and a local Chrome otherwise.
         /// </summary>
         private IWebDriver CreateDriver(ChromeOptions options)

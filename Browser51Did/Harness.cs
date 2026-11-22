@@ -56,9 +56,8 @@ public static class Harness
 
     /// <summary>
     /// The cloud, for example https://localhost:5443, with no trailing
-    /// slash, taken from _51DEGREES_CLOUD_ENDPOINT, or where that is unset
-    /// from the older 51DEGREES_CLOUD_ENDPOINT. The demo is started with
-    /// the same value under each name it reads, as
+    /// slash, taken from _51DEGREES_CLOUD_ENDPOINT, or the public service
+    /// where that is unset. The demo is started with the same value, as
     /// <see cref="Examples.ExampleApps.Demos"/> sets out. That endpoint
     /// names the api/v4 path, as every reader of it expects, and the path
     /// is taken off here, because what the tests ask the cloud directly
@@ -83,12 +82,9 @@ public static class Harness
 
     /// <summary>
     /// The resource key the demo is started with, from
-    /// _51DEGREES_RESOURCE_KEY, or where that is unset from
-    /// _51DEGREES_RESOURCE_KEY_51DID, the name continuous integration sets,
-    /// or where both are unset from the older 51DEGREES_RESOURCE_KEY.
-    /// The demo is given it under each name it reads, as
-    /// <see cref="Examples.ExampleApps.Demos"/> sets out, whichever of the
-    /// three it was read from.
+    /// _51DEGREES_RESOURCE_KEY_51DID. The demo is given it as
+    /// _51DEGREES_RESOURCE_KEY, as
+    /// <see cref="Examples.ExampleApps.Demos"/> sets out.
     /// <para>
     /// The tests that create a 51Did for a standard or personalized answer
     /// need a resource key whose products include CloudV5FODiD.
@@ -119,12 +115,10 @@ public static class Harness
                 string.IsNullOrEmpty(CloudUrl) ? Endpoint.Missing : null,
                 string.IsNullOrEmpty(Resource) ? ResourceKey.Missing : null,
             }.Where(missing => missing != null))
-        + " _51DEGREES_CLOUD_ENDPOINT names the cloud including its api/v4 "
-        + "path, and _51DEGREES_RESOURCE_KEY, or where that is unset "
-        + "_51DEGREES_RESOURCE_KEY_51DID, a resource key the cloud "
-        + "creates 51Dids for standard and personalized answers with. Both "
-        + "are handed to the demo under each name it reads. See "
-        + "Browser51Did/README.md.";
+        + " _51DEGREES_RESOURCE_KEY_51DID names a resource key the cloud "
+        + "creates 51Dids for standard and personalized answers with, and "
+        + "_51DEGREES_CLOUD_ENDPOINT, where it is set, the cloud including "
+        + "its api/v4 path. See Browser51Did/README.md.";
 
     /// <summary>
     /// The object name a page uses when it does not ask for another one,
@@ -718,7 +712,7 @@ public static class Harness
     }
 
     /// <summary>
-    /// A local browser, or one on the Selenium grid SELENIUM_URL names,
+    /// A local browser, or one on the Selenium grid _51DEGREES_SELENIUM_URL names,
     /// which is how every browser in this suite is started. A grid has to
     /// share this machine's network, because the site names resolve to
     /// 127.0.0.1 inside the browser. Either way the session has

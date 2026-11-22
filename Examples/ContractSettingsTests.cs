@@ -16,7 +16,8 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
     public class ContractSettingsTests
     {
         private const string ExampleUrl = "http://localhost:3000/";
-        private const string CloudUrl = "https://cloud.51degrees.com/";
+        private const string CloudUrl = "https://cloud.example.test/";
+        private const string CloudEndpoint = "https://cloud.example.test/api/v4/";
 
         private static TestConfig Config(params string[] namesAndValues)
         {
@@ -58,7 +59,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
             var app = new ExternalExampleApp(new Uri(ExampleUrl));
 
             var options = ExampleApps.BuildOptions(app, 1234, Config(
-                TestConfig.RootUrlVariable, CloudUrl,
+                TestConfig.CloudEndpointVariable, CloudEndpoint,
                 TestConfig.PaidResourceKeyVariable, "a-key"));
 
             Assert.AreEqual(new Uri(CloudUrl), options.CloudEndpoint);
@@ -66,20 +67,37 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
         }
 
         /// <summary>
-        /// An example this suite launches has to be told where the cloud is,
-        /// so a missing CLOUD_ROOT_URL fails and says which variable to set.
+        /// An example this suite launches uses the public cloud service when
+        /// no endpoint is set.
         /// </summary>
         [TestMethod]
-        public void BuildOptions_LaunchedExample_RequiresTheCloudUrl()
+        public void BuildOptions_LaunchedExample_UsesThePublicCloudByDefault()
         {
             var app = new SubprocessExampleApp(ExampleApps.Descriptors["dotnet"]);
 
-            var ex = Assert.ThrowsExactly<InvalidOperationException>(
-                () => ExampleApps.BuildOptions(app, 1234, Config(
-                    TestConfig.PaidResourceKeyVariable, "a-key")));
+            var options = ExampleApps.BuildOptions(app, 1234, Config(
+                TestConfig.PaidResourceKeyVariable, "a-key"));
 
-            StringAssert.Contains(ex.Message, TestConfig.RootUrlVariable);
+            Assert.AreEqual(
+                new Uri("https://cloud.51degrees.com/"), options.CloudEndpoint);
         }
+
+        /// <summary>
+        /// The endpoint names the cloud with its api/v4 path. The suite takes
+        /// the cloud's root from it, with or without the closing slash.
+        /// </summary>
+        [TestMethod]
+        [DataRow("https://cloud.example.test/api/v4/")]
+        [DataRow("https://cloud.example.test/api/v4")]
+        [DataRow("https://cloud.example.test/")]
+        public void TestConfig_RootUrl_IsTheEndpointWithoutItsApiPath(string endpoint)
+        {
+            var config = Config(TestConfig.CloudEndpointVariable, endpoint);
+
+            Assert.AreEqual(CloudUrl, config.RootUrl);
+            Assert.AreEqual(CloudUrl, config.OptionalRootUrl);
+        }
+
 
         /// <summary>
         /// The same for the key, which the example needs to call the cloud.
@@ -91,22 +109,22 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
 
             var ex = Assert.ThrowsExactly<InvalidOperationException>(
                 () => ExampleApps.BuildOptions(app, 1234, Config(
-                    TestConfig.RootUrlVariable, CloudUrl)));
+                    TestConfig.CloudEndpointVariable, CloudEndpoint)));
 
             StringAssert.Contains(ex.Message, TestConfig.PaidResourceKeyVariable);
         }
 
         /// <summary>
-        /// EXAMPLE_URL selects the already-running example whatever
-        /// EXAMPLE_LANG says.
+        /// _51DEGREES_EXAMPLE_URL selects the already-running example whatever
+        /// _51DEGREES_EXAMPLE_LANG says.
         /// </summary>
         [TestMethod]
         public void TryCreate_ExampleUrlSet_UsesTheRunningExample()
         {
             var values = new Dictionary<string, string>
             {
-                ["EXAMPLE_URL"] = ExampleUrl,
-                ["EXAMPLE_LANG"] = "rust",
+                ["_51DEGREES_EXAMPLE_URL"] = ExampleUrl,
+                ["_51DEGREES_EXAMPLE_LANG"] = "rust",
             };
 
             var created = ExampleApps.TryCreate(
@@ -127,7 +145,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
         public void TryCreate_UnknownLanguage_ExplainsItself()
         {
             var created = ExampleApps.TryCreate(
-                name => name == "EXAMPLE_LANG" ? "cobol" : null,
+                name => name == "_51DEGREES_EXAMPLE_LANG" ? "cobol" : null,
                 out _,
                 out var skipReason);
 
@@ -145,10 +163,10 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
         {
             var config = Config();
 
-            Assert.IsNull(config.Optional(TestConfig.RootUrlVariable));
+            Assert.IsNull(config.Optional(TestConfig.PaidResourceKeyVariable));
             var ex = Assert.ThrowsExactly<InvalidOperationException>(
-                () => config.Require(TestConfig.RootUrlVariable));
-            StringAssert.Contains(ex.Message, TestConfig.RootUrlVariable);
+                () => config.Require(TestConfig.PaidResourceKeyVariable));
+            StringAssert.Contains(ex.Message, TestConfig.PaidResourceKeyVariable);
         }
 
         /// <summary>
@@ -158,9 +176,10 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
         [TestMethod]
         public void TestConfig_EmptyValue_CountsAsMissing()
         {
-            var config = Config(TestConfig.RootUrlVariable, "");
+            var config = Config(TestConfig.CloudEndpointVariable, "");
 
-            Assert.IsNull(config.Optional(TestConfig.RootUrlVariable));
+            Assert.IsNull(config.Optional(TestConfig.CloudEndpointVariable));
+            Assert.IsNull(config.OptionalRootUrl);
         }
 
         /// <summary>

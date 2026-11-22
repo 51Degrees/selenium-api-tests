@@ -6,7 +6,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
 {
     /// <summary>
     /// Points at an example that is already running (CI brings it up).
-    /// Selected when EXAMPLE_URL is set.
+    /// Selected when _51DEGREES_EXAMPLE_URL is set.
     /// </summary>
     public sealed class ExternalExampleApp : IExampleApp
     {
