@@ -15,7 +15,8 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.HumanConfidence;
 /// client script served from this process, so that this repository's CI
 /// shows the check passes on an active answer and fails on a passive one,
 /// one with no source and one with a plain level, before any cloud or
-/// example relies on it.
+/// example relies on it. Each test starts the browser before serving, so
+/// the port picked for the page can't be the one the driver listens on.
 /// </summary>
 [TestClass, TestCategory("Browser")]
 public class HumanConfidencePageTests
@@ -37,10 +38,10 @@ public class HumanConfidencePageTests
     [TestMethod]
     public void PassesWhereTheAnswerIsActiveAndSealed()
     {
+        _driver = BrowserDrivers.CreateChrome(new ChromeOptions());
         _script = new ScriptStandIn(
             "{\"humanconfidencesource\":\"Active\"," +
             "\"humanconfidence\":\"stand-in-sealed-value\"}");
-        _driver = BrowserDrivers.CreateChrome(new ChromeOptions());
         var derived = HumanConfidencePage.AssertActiveAfterTheBrowserTests(
             _driver, _script.Page);
         Assert.AreEqual(
@@ -51,10 +52,10 @@ public class HumanConfidencePageTests
     [TestMethod]
     public void FailsWhereTheAnswerIsPassive()
     {
+        _driver = BrowserDrivers.CreateChrome(new ChromeOptions());
         _script = new ScriptStandIn(
             "{\"humanconfidencesource\":\"Passive\"," +
             "\"humanconfidence\":\"Medium\"}");
-        _driver = BrowserDrivers.CreateChrome(new ChromeOptions());
         var failure = Assert.ThrowsExactly<AssertFailedException>(
             () => HumanConfidencePage.AssertActiveAfterTheBrowserTests(
                 _driver, _script.Page));
@@ -65,9 +66,9 @@ public class HumanConfidencePageTests
     [TestMethod]
     public void FailsWhereTheAnswerHasNoSource()
     {
+        _driver = BrowserDrivers.CreateChrome(new ChromeOptions());
         _script = new ScriptStandIn(
             "{\"humanconfidence\":\"stand-in-sealed-value\"}");
-        _driver = BrowserDrivers.CreateChrome(new ChromeOptions());
         var failure = Assert.ThrowsExactly<AssertFailedException>(
             () => HumanConfidencePage.AssertActiveAfterTheBrowserTests(
                 _driver, _script.Page));
@@ -80,10 +81,10 @@ public class HumanConfidencePageTests
     [TestMethod]
     public void FailsWhereTheLevelIsPlain()
     {
+        _driver = BrowserDrivers.CreateChrome(new ChromeOptions());
         _script = new ScriptStandIn(
             "{\"humanconfidencesource\":\"Active\"," +
             "\"humanconfidence\":\"High\"}");
-        _driver = BrowserDrivers.CreateChrome(new ChromeOptions());
         var failure = Assert.ThrowsExactly<AssertFailedException>(
             () => HumanConfidencePage.AssertActiveAfterTheBrowserTests(
                 _driver, _script.Page));

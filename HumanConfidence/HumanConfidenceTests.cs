@@ -99,8 +99,11 @@ public class HumanConfidenceTests
     [TestMethod]
     public void Chrome_SourceIsActiveAfterTheBrowserTests()
     {
-        var page = ServeScriptPage(Key());
+        var key = Key();
+        // The browser starts first, so the port picked for the page can't
+        // be the one the driver listens on.
         _driver = BrowserDrivers.CreateChrome(new ChromeOptions());
+        var page = ServeScriptPage(key);
         HumanConfidencePage.AssertActiveAfterTheBrowserTests(_driver, page);
         Console.WriteLine(
             "  Chrome: Active, with a sealed HumanConfidence.");
