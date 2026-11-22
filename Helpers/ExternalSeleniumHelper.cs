@@ -12,11 +12,13 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers;
 public static class ExternalSeleniumHelper
 {
     /// <summary>
-    /// Returns true and the SELENIUM_URL value when it is set in the environment.
+    /// Returns true and the _51DEGREES_SELENIUM_URL value when it is set in
+    /// the environment.
     /// </summary>
     public static bool IsExternalSelenium(out string seleniumUrl)
     {
-        seleniumUrl = Environment.GetEnvironmentVariable("SELENIUM_URL");
+        seleniumUrl = Environment.GetEnvironmentVariable(
+            BrowserDrivers.SeleniumUrlVariable);
         return string.IsNullOrEmpty(seleniumUrl) == false;
     }
     

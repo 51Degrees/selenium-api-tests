@@ -11,7 +11,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.ModuleJavaScript;
 /// Checks a web server module's JavaScript example, such as the NGINX or
 /// Varnish module's, in Chrome and Firefox. The module's CI serves the
 /// example's page with the module running and names the page in
-/// EXAMPLE_URL. See <see cref="ModuleJavaScriptPage"/> for what the page
+/// _51DEGREES_EXAMPLE_URL. See <see cref="ModuleJavaScriptPage"/> for what the page
 /// must do.
 /// </summary>
 [TestClass, TestCategory("ModuleJavaScript")]
@@ -52,7 +52,7 @@ public class ModuleJavaScriptTests
     }
 
     /// <summary>
-    /// The page EXAMPLE_URL names. A run without it fails, naming the
+    /// The page _51DEGREES_EXAMPLE_URL names. A run without it fails, naming the
     /// variable, because there is no example this suite could start in its
     /// place.
     /// </summary>

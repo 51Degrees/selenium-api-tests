@@ -78,28 +78,24 @@ the Contract tests start an example.
 
 | Variable | Meaning |
 | --- | --- |
-| `_51DEGREES_CLOUD_ENDPOINT` | The cloud, including its `api/v4` path. Handed to the demo unchanged, under each name it reads. The dotnet demo is given `_51DEGREES_CLOUD_ENDPOINT`, which it reads first, and `51DEGREES_CLOUD_ENDPOINT`, which its older versions read. |
-| `_51DEGREES_RESOURCE_KEY` | A resource key the cloud creates 51Dids for standard and personalized answers with. Handed to the demo under each name it reads, `_51DEGREES_RESOURCE_KEY` and `51DEGREES_RESOURCE_KEY` for the dotnet demo, and never printed, because every message a test produces has it taken out. |
-| `_51DEGREES_RESOURCE_KEY_51DID` | Read only where `_51DEGREES_RESOURCE_KEY` is unset, and handed to the demo in the same way. This is the name continuous integration sets, for a resource key carrying the 51Did product. |
-| `51DEGREES_CLOUD_ENDPOINT` / `51DEGREES_RESOURCE_KEY` | The older names, still read after every current name, with one sentence on the error stream saying each is deprecated and which name replaces it. |
-| `DEMO_LANG` | The demo to launch from the sibling checkout. `dotnet` unless set. |
-| `DEMO_URL` | A demo already running, which is used instead of launching one. |
-| `DEMO_MODE` | `cloud` unless set to `pipeline`. |
-| `CLOUD_ROOT_URL` | Not used by these tests, but the suite's assembly set up requires it. |
+| `_51DEGREES_CLOUD_ENDPOINT` | The cloud, including its `api/v4` path, handed to the demo unchanged. The public cloud when unset. |
+| `_51DEGREES_RESOURCE_KEY_51DID` | A resource key the cloud creates 51Dids for standard and personalized answers with. Handed to the demo as `_51DEGREES_RESOURCE_KEY`, and never printed, because every message a test produces has it taken out. |
+| `_51DEGREES_DEMO_LANG` | The demo to launch from the sibling checkout. `dotnet` unless set. |
+| `_51DEGREES_DEMO_URL` | A demo already running, which is used instead of launching one. |
+| `_51DEGREES_DEMO_MODE` | `cloud` unless set to `pipeline`. |
 
 ```bash
-CLOUD_ROOT_URL="http://localhost:5050/" \
 _51DEGREES_CLOUD_ENDPOINT="http://localhost:5050/api/v4/" \
-_51DEGREES_RESOURCE_KEY="<a key that creates 51Dids>" \
+_51DEGREES_RESOURCE_KEY_51DID="<a key that creates 51Dids>" \
 dotnet test --filter TestCategory=Browser51Did
 ```
 
 Every current name starts with an underscore, because bash cannot export a
 variable whose name starts with a digit. In PowerShell write
-`$env:_51DEGREES_RESOURCE_KEY = '...'`.
+`$env:_51DEGREES_RESOURCE_KEY_51DID = '...'`.
 
-With no endpoint name or no resource key name set, every test that needs a
-browser reports inconclusive with the reason, and the thirteen that need none
+With no resource key set, every test that needs a
+browser reports inconclusive with the reason, and the ten that need none
 still run. A resource key that cannot create reports inconclusive with the
 cloud's own refusal, and so does a cloud that will not hold a shared choice.
 The shared choice needs the browser to keep the cloud's `Secure`
@@ -116,12 +112,12 @@ another name.
    host name, because the tests load the pages as `site-a.localtest` and
    `site-b.localtest` on the demo's port.
 3. Add an entry to `ExampleApps.Demos` saying how to launch it.
-4. Run the category with `DEMO_LANG` set to that entry.
+4. Run the category with `_51DEGREES_DEMO_LANG` set to that entry.
 
 ## What the pipeline mode proves today
 
 The dotnet demo serves every route under `/pipeline/` as well, and
-`DEMO_MODE=pipeline` drives those pages. Their client script comes from the
+`_51DEGREES_DEMO_MODE=pipeline` drives those pages. Their client script comes from the
 demo's own pipeline, which renders the user prompt block only with the
 pipeline packages that carry the new template, so with the released
 packages those pages show no prompt block and the tests that press it fail

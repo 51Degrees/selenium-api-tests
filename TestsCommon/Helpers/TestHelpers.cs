@@ -170,8 +170,9 @@ namespace FiftyOne.Pipeline.Cloud.Tests.Common.Helpers
         }
 
         /// <summary>
-        /// The cloud URL to test against: CLOUD_ROOT_URL when it is set,
-        /// otherwise the URL passed in.
+        /// The cloud URL to test against: the root of
+        /// _51DEGREES_CLOUD_ENDPOINT when it is set, otherwise the URL passed
+        /// in.
         /// </summary>
         public static string GetActualRootUrl(string testServerRootUrl)
         {

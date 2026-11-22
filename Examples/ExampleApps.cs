@@ -8,27 +8,34 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
 {
     /// <summary>
     /// Resolves the example app under test from environment variables:
-    /// EXAMPLE_URL  -> already running (CI);
-    /// EXAMPLE_LANG -> launch that language's example as a subprocess
-    ///                 (defaults to "dotnet").
+    /// _51DEGREES_EXAMPLE_URL  -> already running (CI);
+    /// _51DEGREES_EXAMPLE_LANG -> launch that language's example as a
+    ///                            subprocess (defaults to "dotnet").
     /// </summary>
     public static class ExampleApps
     {
-        private const string ExampleLangVar = "EXAMPLE_LANG";
+        private const string ExampleLangVar = "_51DEGREES_EXAMPLE_LANG";
 
         /// <summary>
         /// Names the address of an example that is already running.
         /// </summary>
-        public const string ExampleUrlVar = "EXAMPLE_URL";
+        public const string ExampleUrlVar = "_51DEGREES_EXAMPLE_URL";
 
-        /// <summary>The selected language (EXAMPLE_LANG, default "dotnet").</summary>
+        /// <summary>
+        /// Names the port an example the suite starts listens on.
+        /// </summary>
+        private const string PortVar = "_51DEGREES_EXAMPLE_HTTP_PORTS";
+
+        /// <summary>
+        /// The selected language (_51DEGREES_EXAMPLE_LANG, default "dotnet").
+        /// </summary>
         public static string SelectedLang =>
             Environment.GetEnvironmentVariable(ExampleLangVar) ?? "dotnet";
 
         /// <summary>
         /// Path the selected language's client-side script posts refreshed
         /// evidence to. Read from the descriptor rather than the running app,
-        /// so it is available for the CI case too, where EXAMPLE_URL points at
+        /// so it is available for the CI case too, where _51DEGREES_EXAMPLE_URL points at
         /// an already-running example and no descriptor is used to launch it.
         /// </summary>
         public static string JsonEndpointPath =>
@@ -58,7 +65,8 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
         /// <summary>
         /// Element the selected language's page renders its client-side results
         /// into. Read from the descriptor so it is available for the CI case
-        /// too, where EXAMPLE_URL points at an already-running example.
+        /// too, where _51DEGREES_EXAMPLE_URL points at an already-running
+        /// example.
         /// </summary>
         public static string ClientResultsElementId =>
             Descriptors.TryGetValue(SelectedLang, out var descriptor)
@@ -95,7 +103,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
             {
                 app = null;
                 skipReason =
-                    $"No example descriptor registered for EXAMPLE_LANG='{lang}'. " +
+                    $"No example descriptor registered for {ExampleLangVar}='{lang}'. " +
                     $"Known: {string.Join(", ", Descriptors.Keys)}.";
                 return false;
             }
@@ -104,26 +112,29 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
             return true;
         }
 
-        private const string DemoLangVar = "DEMO_LANG";
-        private const string DemoUrlVar = "DEMO_URL";
+        private const string DemoLangVar = "_51DEGREES_DEMO_LANG";
+        private const string DemoUrlVar = "_51DEGREES_DEMO_URL";
 
         /// <summary>
-        /// The selected demo's language (DEMO_LANG, default "dotnet").
+        /// The selected demo's language (_51DEGREES_DEMO_LANG, default
+        /// "dotnet").
         /// </summary>
         /// <remarks>
         /// A demo is chosen separately from the example the Contract tests
         /// use, because the two are different apps. The GettingStarted-Web
         /// examples prove a web integration works, and a demo carries every
         /// page the Browser51Did tests drive, which each language mirrors so
-        /// that the same tests hold for all of them. DEMO_URL and DEMO_LANG
-        /// work the way EXAMPLE_URL and EXAMPLE_LANG do.
+        /// that the same tests hold for all of them. _51DEGREES_DEMO_URL and
+        /// _51DEGREES_DEMO_LANG work the way _51DEGREES_EXAMPLE_URL and
+        /// _51DEGREES_EXAMPLE_LANG do.
         /// </remarks>
         public static string SelectedDemoLang =>
             Environment.GetEnvironmentVariable(DemoLangVar) ?? "dotnet";
 
         /// <summary>
         /// Attempts to create the demo for the current environment, being the
-        /// one already running at DEMO_URL, or else the DEMO_LANG demo
+        /// one already running at _51DEGREES_DEMO_URL, or else the
+        /// _51DEGREES_DEMO_LANG demo
         /// launched from its sibling checkout. Returns false when no demo is
         /// registered for that language.
         /// </summary>
@@ -144,7 +155,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
             {
                 app = null;
                 skipReason =
-                    $"No demo registered for DEMO_LANG='{SelectedDemoLang}'. " +
+                    $"No demo registered for {DemoLangVar}='{SelectedDemoLang}'. " +
                     $"Known: {string.Join(", ", Demos.Keys)}.";
                 return false;
             }
@@ -157,9 +168,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
         /// Per-language demos. Each serves the same pages under the same
         /// routes, and reads its input data from a resource key and a cloud
         /// endpoint variable, so a demo in another language is added here and
-        /// nothing else in the suite changes. The suite always hands the key
-        /// over under the runtime names, whichever of its two names the suite
-        /// read it from.
+        /// nothing else in the suite changes.
         /// </summary>
         public static readonly IReadOnlyDictionary<string, ExampleDescriptor> Demos =
             new Dictionary<string, ExampleDescriptor>
@@ -176,18 +185,10 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     StartupTimeoutSeconds: 180,
                     BuildEnv: o => new Dictionary<string, string>
                     {
-                        // The demo reads the _51DEGREES_ names first and
-                        // then the CI name _51DEGREES_RESOURCE_KEY_51DID,
-                        // which a CI run may hold, before the older names.
-                        // Setting the _51DEGREES_ names makes the key the
-                        // suite hands over the one the demo uses. Older
-                        // versions read only the older names, so both are set.
                         ["_51DEGREES_RESOURCE_KEY"] = o.ResourceKey,
-                        ["51DEGREES_RESOURCE_KEY"] = o.ResourceKey,
                         // the endpoint includes the api/v4 path, as every
-                        // other 51DEGREES_CLOUD_ENDPOINT reader expects
+                        // reader of _51DEGREES_CLOUD_ENDPOINT expects
                         ["_51DEGREES_CLOUD_ENDPOINT"] = new Uri(o.CloudEndpoint, "api/v4/").ToString(),
-                        ["51DEGREES_CLOUD_ENDPOINT"] = new Uri(o.CloudEndpoint, "api/v4/").ToString(),
                         ["ASPNETCORE_URLS"] = $"http://localhost:{o.Port}",
                     }),
             };
@@ -203,14 +204,15 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
         /// Options for starting <paramref name="app"/>.
         /// </summary>
         /// <remarks>
-        /// An example that is already running (EXAMPLE_URL) was pointed at
-        /// its cloud and given its key by whoever started it, and
+        /// An example that is already running (_51DEGREES_EXAMPLE_URL) was
+        /// pointed at its cloud and given its key by whoever started it, and
         /// <see cref="ExternalExampleApp.StartAsync"/> ignores these options.
-        /// So CLOUD_ROOT_URL and PAID_RESOURCE_KEY are passed on when they
-        /// are set but are not required, which lets an on-premise example
-        /// run the Contract tests with neither. An example this suite
-        /// launches itself needs both, and a missing one throws an
-        /// <see cref="InvalidOperationException"/> naming the variable.
+        /// So the endpoint and the key are passed on when they are set but
+        /// are not required, which lets an on-premise example run the
+        /// Contract tests with neither. An example this suite launches itself
+        /// needs a key, and a missing one throws an
+        /// <see cref="InvalidOperationException"/> naming the variable. It
+        /// uses the public cloud service when no endpoint is set.
         /// </remarks>
         public static ExampleAppOptions BuildOptions(
             IExampleApp app, int port, TestConfig config)
@@ -250,14 +252,9 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     StartupTimeoutSeconds: 180,
                     BuildEnv: o => new Dictionary<string, string>
                     {
-                        // The example reads the _51DEGREES_ names. Released
-                        // versions of it read the two older names, so both
-                        // are set until every language has released.
                         ["_51DEGREES_RESOURCE_KEY"] = o.ResourceKey,
-                        ["SUPER_RESOURCE_KEY"] = o.ResourceKey,
                         // the endpoint must include the api/v4 path
                         ["_51DEGREES_CLOUD_ENDPOINT"] = new Uri(o.CloudEndpoint, "api/v4/").ToString(),
-                        ["FIFTYONE_CLOUD_ENDPOINT"] = new Uri(o.CloudEndpoint, "api/v4/").ToString(),
                         ["ASPNETCORE_URLS"] = $"http://localhost:{o.Port}",
                         // run on a newer .NET runtime if the exact one isn't installed
                         ["DOTNET_ROLL_FORWARD"] = "Major",
@@ -273,9 +270,9 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     StartupTimeoutSeconds: 120,
                     BuildEnv: o => new Dictionary<string, string>
                     {
-                        ["PORT"] = $"{o.Port}",
-                        ["TestCloudEndpoint"] = new Uri(o.CloudEndpoint, "api/v4").ToString(),
-                        ["TestResourceKey"] = o.ResourceKey,
+                        [PortVar] = $"{o.Port}",
+                        ["_51DEGREES_CLOUD_ENDPOINT"] = new Uri(o.CloudEndpoint, "api/v4/").ToString(),
+                        ["_51DEGREES_RESOURCE_KEY"] = o.ResourceKey,
                     },
                     BuildCommand: "mvn",
                     BuildArgs: new[] { "-pl", "web/getting-started.cloud", "-am", "package", "-DskipTests" },
@@ -298,11 +295,9 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     StartupTimeoutSeconds: 60,
                     BuildEnv: o => new Dictionary<string, string>
                     {
-                        ["PORT"] = $"{o.Port}",
-                        // the engine reads the cloud endpoint from FOD_CLOUD_API_URL,
-                        // the example reads the key from RESOURCE_KEY
-                        ["FOD_CLOUD_API_URL"] = new Uri(o.CloudEndpoint, "api/v4/").ToString(),
-                        ["RESOURCE_KEY"] = o.ResourceKey,
+                        [PortVar] = $"{o.Port}",
+                        ["_51DEGREES_CLOUD_ENDPOINT"] = new Uri(o.CloudEndpoint, "api/v4/").ToString(),
+                        ["_51DEGREES_RESOURCE_KEY"] = o.ResourceKey,
                     },
                     BuildCommand: "npm",
                     // package.json lives one level up from examples/cloud/gettingstarted-web.
@@ -331,9 +326,9 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     StartupTimeoutSeconds: 60,
                     BuildEnv: o => new Dictionary<string, string>
                     {
-                        ["PORT"] = $"{o.Port}",
-                        ["cloud_endpoint"] = new Uri(o.CloudEndpoint, "api/v4/").ToString(),
-                        ["resource_key"] = o.ResourceKey,
+                        [PortVar] = $"{o.Port}",
+                        ["_51DEGREES_CLOUD_ENDPOINT"] = new Uri(o.CloudEndpoint, "api/v4/").ToString(),
+                        ["_51DEGREES_RESOURCE_KEY"] = o.ResourceKey,
                     },
                     BuildCommand: "bash",
                     // a Windows python install may have no working "python3",
@@ -359,15 +354,15 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     {
                         "-c",
                         "rm -f cloud/classesgettingStartedWeb.pipeline cloud/classes/gettingStartedWeb.pipeline; " +
-                        "exec php -S localhost:$PORT cloud/gettingStartedWeb.php",
+                        "exec php -S localhost:$" + PortVar + " cloud/gettingStartedWeb.php",
                     },
                     ReadinessPath: "/",
                     StartupTimeoutSeconds: 60,
                     BuildEnv: o => new Dictionary<string, string>
                     {
-                        ["PORT"] = $"{o.Port}",
-                        ["cloud_endpoint"] = new Uri(o.CloudEndpoint, "api/v4/").ToString(),
-                        ["resource_key"] = o.ResourceKey,
+                        [PortVar] = $"{o.Port}",
+                        ["_51DEGREES_CLOUD_ENDPOINT"] = new Uri(o.CloudEndpoint, "api/v4/").ToString(),
+                        ["_51DEGREES_RESOURCE_KEY"] = o.ResourceKey,
                     },
                     BuildCommand: "composer",
                     BuildArgs: new[] { "install", "--working-dir=.." },
@@ -392,11 +387,9 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                     StartupTimeoutSeconds: 60,
                     BuildEnv: o => new Dictionary<string, string>
                     {
-                        ["PORT"] = $"{o.Port}",
-                        // the engine reads the base cloud URL (which includes the
-                        // api/v4 path) from 51DEGREES_CLOUD_ENDPOINT
-                        ["51DEGREES_CLOUD_ENDPOINT"] = new Uri(o.CloudEndpoint, "api/v4/").ToString(),
-                        ["51DEGREES_RESOURCE_KEY"] = o.ResourceKey,
+                        [PortVar] = $"{o.Port}",
+                        ["_51DEGREES_CLOUD_ENDPOINT"] = new Uri(o.CloudEndpoint, "api/v4/").ToString(),
+                        ["_51DEGREES_RESOURCE_KEY"] = o.ResourceKey,
                     },
                     // compile ahead of `cargo run` so the native-code build gets
                     // the build timeout, leaving startup to the run timeout
