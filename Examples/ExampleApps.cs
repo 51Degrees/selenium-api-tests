@@ -15,7 +15,11 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
     public static class ExampleApps
     {
         private const string ExampleLangVar = "EXAMPLE_LANG";
-        private const string ExampleUrlVar = "EXAMPLE_URL";
+
+        /// <summary>
+        /// Names the address of an example that is already running.
+        /// </summary>
+        public const string ExampleUrlVar = "EXAMPLE_URL";
 
         /// <summary>The selected language (EXAMPLE_LANG, default "dotnet").</summary>
         public static string SelectedLang =>
