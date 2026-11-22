@@ -16,10 +16,12 @@ sibling directory and run it at their integration-test step.
 | `Contract` | An example app serves `51Degrees.core.js`, client-side evidence flows back, and the server-rendered page shows a real detection result. | Cloud CI (per example, vs `:8080`) **and** every API CI (vs the public cloud). |
 | `CloudInternal` | Cloud response behaviour through a browser: cache reuse, COEP/CORP headers, third-party cookies, client-side overrides, and the per-browser JS endpoints. | Cloud CI only (vs `:8080`). |
 | `Browser51Did` | The 51Did user prompt work in Chrome and Firefox, driving a demo's pages. See [Browser51Did/README.md](Browser51Did/README.md). | Cloud CI when something they prove changed (vs `:8080`, dotnet demo). |
-| `Browser` | That a browser starts at all and runs the script on a page served from the test process. No cloud, no key, no example. | This repository's own CI, on every runner image it uses. |
+| `ModuleJavaScript` | A web server module's JavaScript example, in Chrome and Firefox. The page at `EXAMPLE_URL` loads the JavaScript the module serves, which writes the browser's screen width into the `51D_ScreenPixelsWidth` cookie, and then shows in the element `widthvalue` the width the module detected from that cookie. Both must be the browser's own screen width, so a page that shows the width the data file holds for the User-Agent fails. | The NGINX and Varnish module CIs, each against its own example served with the module running. |
+| `Browser` | That a browser starts at all and runs the script on a page served from the test process. No cloud, no key, no example. Also runs the `ModuleJavaScript` check against a stand-in module served the same way, to show it passes on a working page and fails on a broken one. | This repository's own CI, on every runner image it uses. |
 
-Select a subset with `--filter TestCategory=Contract` or
-`--filter TestCategory=CloudInternal`.
+Select a subset with `--filter TestCategory=Contract`,
+`--filter TestCategory=CloudInternal` or
+`--filter TestCategory=ModuleJavaScript`.
 
 ## How a run is wired
 
@@ -63,9 +65,10 @@ and no keys are committed.
 | `FREE_RESOURCE_KEY` | `CloudInternal` | Free resource key for the JS-endpoint tests. |
 | `ENTERPRISE_V4_LICENSE` | `CloudInternal` | License passed to the JS endpoint to unlock paid properties. |
 | `SELENIUM_URL` | optional | Selenium grid URL, omit to drive a browser on this machine. |
-| `CHROMEWEBDRIVER` / `GECKOWEBDRIVER` / `EDGEWEBDRIVER` | optional | A driver, or the directory holding one. GitHub's Linux runner images set these. |
+| `CHROMEWEBDRIVER` / `GECKOWEBDRIVER` / `EDGEWEBDRIVER` | optional | A driver, or the directory holding one. GitHub's Linux, Windows and macOS runner images set these. A repository that runs this suite leaves them to it and does not read them itself. |
 | `CHROME_BIN` / `FIREFOX_BIN` / `EDGE_BIN` | optional | The browser binary to drive, when it is not on the path. |
 | `EXAMPLE_URL` / `EXAMPLE_LANG` | `Contract` | The example app to test (CI / local). |
+| `EXAMPLE_URL` | `ModuleJavaScript` | The module's JavaScript example page, served with the module running. There is no example this suite could start in its place, so the tests fail without it. |
 | `_51DEGREES_CLOUD_ENDPOINT` / `_51DEGREES_RESOURCE_KEY` | `Browser51Did` | The cloud and the resource key. Handed to the demo under each name it reads, which for the dotnet demo are these and the older names. |
 | `_51DEGREES_RESOURCE_KEY_51DID` | `Browser51Did` | Read where `_51DEGREES_RESOURCE_KEY` is unset. The name CI sets, for a resource key carrying the 51Did product. |
 | `51DEGREES_CLOUD_ENDPOINT` / `51DEGREES_RESOURCE_KEY` | `Browser51Did` | The older names, still read after every current name and reported as deprecated. |
@@ -109,6 +112,15 @@ and the only settings it needs:
 ```bash
 export EXAMPLE_URL="http://localhost:8080/"
 dotnet test --filter TestCategory=Contract
+```
+
+ModuleJavaScript against a web server module's JavaScript example, served with
+the module running on a data file that holds ScreenPixelsWidthJavascript, which
+the free Lite data file does not:
+
+```bash
+export EXAMPLE_URL="http://localhost:8889/index.html"
+dotnet test --filter TestCategory=ModuleJavaScript
 ```
 
 CloudInternal against a cloud you control:
@@ -155,3 +167,6 @@ nor the driver for it, so the Edge tests say so and skip.
   once against `:8080`.
 - **Each API CI** checks this repo out, launches its own example, and runs `Contract`
   against the public cloud.
+- **The NGINX and Varnish module CIs** check this repo out as a sibling, serve
+  their JavaScript example with the module running, and run `ModuleJavaScript`
+  against it. They find and start no browser or driver of their own.
