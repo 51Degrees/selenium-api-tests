@@ -44,15 +44,25 @@ Select a subset with `--filter TestCategory=Contract`,
   first start included, gives each command up to 300 seconds, because a start
   on a fresh or busy runner can take longer than the driver's default of 60
   seconds. A session on a Selenium grid gets the same 300 seconds. The first
-  start's time is written to that test's output. `BrowserDrivers.Prepare`
+  start's time is written to that test's output. A local session that the
+  browser or its driver did not start is started again when the failed attempt
+  answered within 30 seconds, up to three attempts with two seconds between
+  them, and each failed attempt is written to that test's output. A driver
+  that starts the browser and then cannot reach it answers in about a second,
+  and a re-run has cleared that failure, whereas a start that hangs answers
+  only at the 300 second limit and is not made again, so the attempts add at
+  most 64 seconds to the longest one start can take. A driver that does not
+  match its browser, or one Selenium Manager could not fetch, is tried again
+  too, at a cost of a few seconds. Options the driver rejects and a driver
+  path that does not exist are reported at once. `BrowserDrivers.Prepare`
   runs every browser headless and accepting insecure certificates, and gives
   every Chrome and Edge `--no-sandbox` and `--disable-dev-shm-usage`, so a test
   sets none of these itself. The Chrome, Edge and Firefox drivers start
   quietly, with no start up banner, no verbose log and no console window. The
   51Did tests are the exception, as `Browser51Did/Harness.cs` starts their
-  Chrome and Firefox itself, with the same preparation, time limit and quiet
-  drivers, but leaves Selenium Manager to find or fetch the driver and makes
-  no first start.
+  Chrome and Firefox itself, with the same preparation, time limit, attempts
+  and quiet drivers, but leaves Selenium Manager to find or fetch the driver
+  and makes no first start.
 
 ## Configuration
 

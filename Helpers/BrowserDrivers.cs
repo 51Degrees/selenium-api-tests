@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Chromium;
@@ -77,15 +78,50 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
         public const int FirstStartTimeoutSeconds = 300;
 
         /// <summary>
-        /// Seconds each command of every local Chrome and Firefox session, and
-        /// of every remote session, may take, its start included. A later
-        /// start can take as long as a first, so every session has the first
-        /// start's limit in place of the driver's 60 seconds.
+        /// Seconds each command of every local Chrome, Edge and Firefox
+        /// session, and of every remote session, may take, its start
+        /// included. A later start can take as long as a first, so every
+        /// session has the first start's limit in place of the driver's 60
+        /// seconds.
         /// </summary>
         public const int SessionTimeoutSeconds = FirstStartTimeoutSeconds;
 
         private static readonly TimeSpan _sessionTimeout =
             TimeSpan.FromSeconds(SessionTimeoutSeconds);
+
+        /// <summary>
+        /// Attempts a local browser session is given to start. A driver that
+        /// started the browser but could not reach it answers in about a
+        /// second and Selenium stops that driver's process. A re-run of the
+        /// job has cleared that failure, so it is tried again rather than
+        /// failing the test.
+        /// </summary>
+        public const int SessionStartAttempts = 3;
+
+        /// <summary>
+        /// Seconds between one failed start of a session and the next
+        /// attempt, which leaves the machine a moment before it is asked
+        /// again.
+        /// </summary>
+        public const int SessionRetryDelaySeconds = 2;
+
+        /// <summary>
+        /// Seconds within which a failed attempt must have answered for
+        /// another to be made. A start that hangs answers only at
+        /// <see cref="SessionTimeoutSeconds"/> and is never made again, so
+        /// the attempts add at most (<see cref="SessionStartAttempts"/> - 1)
+        /// x (this + <see cref="SessionRetryDelaySeconds"/>) seconds, 64 in
+        /// all, to the longest one start can take.
+        /// </summary>
+        public const int SessionRetryWithinSeconds = 30;
+
+        private static readonly TimeSpan _sessionRetryDelay =
+            TimeSpan.FromSeconds(SessionRetryDelaySeconds);
+
+        private static readonly TimeSpan _sessionRetryWithin =
+            TimeSpan.FromSeconds(SessionRetryWithinSeconds);
+
+        private static readonly Stopwatch _clock = Stopwatch.StartNew();
 
         /// <summary>
         /// Arguments every Chrome and Edge is given. --no-sandbox turns off
@@ -216,12 +252,12 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
                 ChromeService(driverPath), options, timeout)));
             if (driverPath != null)
             {
-                return new ChromeDriver(
-                    ChromeService(driverPath), options, _sessionTimeout);
+                return Retried("Chrome", () => new ChromeDriver(
+                    ChromeService(driverPath), options, _sessionTimeout));
             }
             return Fetched(
-                () => new ChromeDriver(
-                    ChromeService(null), options, _sessionTimeout),
+                () => Retried("Chrome", () => new ChromeDriver(
+                    ChromeService(null), options, _sessionTimeout)),
                 "Chrome", ChromeDriverVariable, ChromeDriverNames);
         }
 
@@ -333,12 +369,12 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
                 FirefoxService(driverPath), options, timeout)));
             if (driverPath != null)
             {
-                return new FirefoxDriver(
-                    FirefoxService(driverPath), options, _sessionTimeout);
+                return Retried("Firefox", () => new FirefoxDriver(
+                    FirefoxService(driverPath), options, _sessionTimeout));
             }
             return Fetched(
-                () => new FirefoxDriver(
-                    FirefoxService(null), options, _sessionTimeout),
+                () => Retried("Firefox", () => new FirefoxDriver(
+                    FirefoxService(null), options, _sessionTimeout)),
                 "Firefox", GeckoDriverVariable, GeckoDriverNames);
         }
 
@@ -373,12 +409,12 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
             SetBinaryLocation(options, EdgeBinaryVariable, _edgeBinaryNames);
             if (driverPath != null)
             {
-                return new EdgeDriver(
-                    EdgeService(driverPath), options, _sessionTimeout);
+                return Retried("Edge", () => new EdgeDriver(
+                    EdgeService(driverPath), options, _sessionTimeout));
             }
             return Fetched(
-                () => new EdgeDriver(
-                    EdgeService(null), options, _sessionTimeout),
+                () => Retried("Edge", () => new EdgeDriver(
+                    EdgeService(null), options, _sessionTimeout)),
                 "Edge", EdgeDriverVariable, EdgeDriverNames);
         }
 
@@ -396,6 +432,98 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
                 }
             }
         }
+
+        /// <summary>
+        /// Runs <paramref name="create"/> and, when the browser or its
+        /// driver did not start and said so within
+        /// <see cref="SessionRetryWithinSeconds"/>, runs it again up to
+        /// <see cref="SessionStartAttempts"/> times, waiting
+        /// <see cref="SessionRetryDelaySeconds"/> seconds between attempts.
+        /// What stops the last attempt travels on as it is, so a test
+        /// reports the error it would report without this, and each earlier
+        /// failure is written to the test's output.
+        /// </summary>
+        /// <typeparam name="T">What is created.</typeparam>
+        /// <param name="browser">Name of the browser, for the output.</param>
+        /// <param name="create">Creates the session.</param>
+        /// <returns>What <paramref name="create"/> gave.</returns>
+        public static T Retried<T>(string browser, Func<T> create) =>
+            Retried(browser, create, () => _clock.Elapsed, Thread.Sleep);
+
+        /// <summary>
+        /// As <see cref="Retried{T}(string, Func{T})"/>, reading the time
+        /// from <paramref name="clock"/> and waiting through
+        /// <paramref name="wait"/>, so the limits can be tested without a
+        /// browser or a real wait.
+        /// </summary>
+        /// <typeparam name="T">What is created.</typeparam>
+        /// <param name="browser">Name of the browser, for the output.</param>
+        /// <param name="create">Creates the session.</param>
+        /// <param name="clock">Time on a clock that only moves forward.</param>
+        /// <param name="wait">Waits for the time given.</param>
+        /// <returns>What <paramref name="create"/> gave.</returns>
+        internal static T Retried<T>(
+            string browser,
+            Func<T> create,
+            Func<TimeSpan> clock,
+            Action<TimeSpan> wait)
+        {
+            if (browser == null)
+            {
+                throw new ArgumentNullException(nameof(browser));
+            }
+            if (create == null)
+            {
+                throw new ArgumentNullException(nameof(create));
+            }
+            if (clock == null)
+            {
+                throw new ArgumentNullException(nameof(clock));
+            }
+            if (wait == null)
+            {
+                throw new ArgumentNullException(nameof(wait));
+            }
+            for (var attempt = 1; ; attempt++)
+            {
+                var started = clock();
+                try
+                {
+                    return create();
+                }
+                catch (Exception e) when (
+                    attempt < SessionStartAttempts
+                    && IsAStartFailure(e)
+                    && clock() - started < _sessionRetryWithin)
+                {
+                    Console.WriteLine(
+                        $"{browser} did not start on attempt {attempt} of "
+                        + $"{SessionStartAttempts}, so it is asked again in "
+                        + $"{SessionRetryDelaySeconds} s. "
+                        + FirstLine(e.Message));
+                    wait(_sessionRetryDelay);
+                }
+            }
+        }
+
+        /// <summary>
+        /// True when what stopped an attempt is how Selenium reports a
+        /// browser or driver that did not start, being an
+        /// InvalidOperationException for a session it could not create and a
+        /// WebDriverException for a driver service that would not run. Some
+        /// answers of these types do not clear on another attempt, a driver
+        /// that does not match its browser or a driver Selenium Manager could
+        /// not fetch for two, and those cost only the seconds the extra
+        /// attempts take. Options the driver rejects and a driver path that
+        /// does not exist are never tried again.
+        /// </summary>
+        /// <param name="e">What stopped the attempt.</param>
+        /// <returns>True when another attempt is worth making.</returns>
+        private static bool IsAStartFailure(Exception e) =>
+            (e is WebDriverException || e is InvalidOperationException)
+            && (e is WebDriverArgumentException
+                || e is NoSuchDriverException
+                || e is DriverServiceNotFoundException) == false;
 
         /// <summary>
         /// Runs <paramref name="start"/> the first time a browser is asked
