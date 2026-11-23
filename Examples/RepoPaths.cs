@@ -12,13 +12,15 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
     {
         /// <summary>
         /// Directory that holds this repo and its sibling example repos.
-        /// Override with the SELENIUM_SIBLINGS_ROOT environment variable.
+        /// Override with the _51DEGREES_SELENIUM_SIBLINGS_ROOT environment
+        /// variable.
         /// </summary>
         public static string SiblingsRoot { get; } = ResolveSiblingsRoot();
 
         private static string ResolveSiblingsRoot()
         {
-            var overridden = Environment.GetEnvironmentVariable("SELENIUM_SIBLINGS_ROOT");
+            var overridden = Environment.GetEnvironmentVariable(
+                "_51DEGREES_SELENIUM_SIBLINGS_ROOT");
             if (!string.IsNullOrEmpty(overridden))
             {
                 return overridden;

@@ -35,11 +35,11 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
             var line = SkipReasonLogger.Format(Result(
                 TestOutcome.Skipped,
                 "Assert.Inconclusive failed. No example descriptor "
-                + "registered for EXAMPLE_LANG='cobol'."));
+                + "registered for _51DEGREES_EXAMPLE_LANG='cobol'."));
 
             Assert.AreEqual(
                 "  Skipped TheTest, because: No example descriptor "
-                + "registered for EXAMPLE_LANG='cobol'.",
+                + "registered for _51DEGREES_EXAMPLE_LANG='cobol'.",
                 line);
         }
 
@@ -73,9 +73,10 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
                 + "exception.\r\nMicrosoft.VisualStudio.TestTools."
                 + "UnitTesting.AssertInconclusiveException: "
                 + "Assert.Inconclusive failed. Required environment variable "
-                + "'CLOUD_ROOT_URL' is not set.."));
+                + "'_51DEGREES_RESOURCE_KEY_BESPOKE' is not set.."));
 
-            StringAssert.Contains(line, "'CLOUD_ROOT_URL' is not set.");
+            StringAssert.Contains(
+                line, "'_51DEGREES_RESOURCE_KEY_BESPOKE' is not set.");
             Assert.IsFalse(line.Contains("AssertInconclusiveException"),
                 "the exception type is noise, not a reason");
             Assert.IsFalse(line.Contains('\n'), "one skip should be one line");

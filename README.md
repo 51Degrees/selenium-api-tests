@@ -16,26 +16,29 @@ sibling directory and run it at their integration-test step.
 | `Contract` | An example app serves `51Degrees.core.js`, client-side evidence flows back, and the server-rendered page shows a real detection result. | Cloud CI (per example, vs `:8080`) **and** every API CI (vs the public cloud). |
 | `CloudInternal` | Cloud response behaviour through a browser: cache reuse, COEP/CORP headers, third-party cookies, client-side overrides, and the per-browser JS endpoints. | Cloud CI only (vs `:8080`). |
 | `Browser51Did` | The 51Did user prompt work in Chrome and Firefox, driving a demo's pages. See [Browser51Did/README.md](Browser51Did/README.md). | Cloud CI when something they prove changed (vs `:8080`, dotnet demo). |
-| `Browser` | That a browser starts at all and runs the script on a page served from the test process. No cloud, no key, no example. | This repository's own CI, on every runner image it uses. |
+| `ModuleJavaScript` | A web server module's JavaScript example, in Chrome and Firefox. The page at `_51DEGREES_EXAMPLE_URL` loads the JavaScript the module serves, which writes the browser's screen width into the `51D_ScreenPixelsWidth` cookie, and then shows in the element `widthvalue` the width the module detected from that cookie. Both must be the browser's own screen width, so a page that shows the width the data file holds for the User-Agent fails. | The NGINX and Varnish module CIs, each against its own example served with the module running. |
+| `Browser` | That a browser starts at all and runs the script on a page served from the test process. No cloud, no key, no example. Also runs the `ModuleJavaScript` check against a stand-in module served the same way, to show it passes on a working page and fails on a broken one. | This repository's own CI, on every runner image it uses. |
 
-Select a subset with `--filter TestCategory=Contract` or
-`--filter TestCategory=CloudInternal`.
+Select a subset with `--filter TestCategory=Contract`,
+`--filter TestCategory=CloudInternal` or
+`--filter TestCategory=ModuleJavaScript`.
 
 ## How a run is wired
 
 - **Example app** - for CI the example is launched by the caller and its URL is
-  passed in `EXAMPLE_URL`. For local runs set `EXAMPLE_LANG` (e.g. `dotnet`) and the
-  suite launches the example from the sibling checkout.
-- **Cloud endpoint** - `CLOUD_ROOT_URL` is the cloud an example launched here is
-  pointed at, and the cloud the `CloudInternal` tests hit directly. An example
-  that is already running was pointed at its data by whoever started it, so with
-  `EXAMPLE_URL` set the suite needs neither `CLOUD_ROOT_URL` nor
-  `PAID_RESOURCE_KEY`, which is what lets an on-premise example run `Contract`.
+  passed in `_51DEGREES_EXAMPLE_URL`. For local runs set `_51DEGREES_EXAMPLE_LANG`
+  (e.g. `dotnet`) and the suite launches the example from the sibling checkout.
+- **Cloud endpoint** - `_51DEGREES_CLOUD_ENDPOINT`, including its `api/v4` path,
+  is the cloud an example launched here is pointed at, and the cloud the
+  `CloudInternal` tests hit directly. When it isn't set, the public cloud is
+  used. An example that is already running was pointed at its data by whoever
+  started it, so with `_51DEGREES_EXAMPLE_URL` set the suite needs neither an
+  endpoint nor a key, which is what lets an on-premise example run `Contract`.
 - **Browser** - tests get their browsers from `Helpers/BrowserDrivers.cs`. A
   driver the machine already provides is used first, named by
   `CHROMEWEBDRIVER`, `GECKOWEBDRIVER` or `EDGEWEBDRIVER` or found on the path.
   When the machine provides none, Selenium Manager fetches one. Set
-  `SELENIUM_URL` to drive a browser on a Selenium grid instead. Chrome and
+  `_51DEGREES_SELENIUM_URL` to drive a browser on a Selenium grid instead. Chrome and
   Firefox are each started once, before the first test that asks
   `BrowserDrivers` for them, and every Chrome, Edge and Firefox session, that
   first start included, gives each command up to 300 seconds, because a start
@@ -58,23 +61,27 @@ and no keys are committed.
 
 | Variable | Used by | Notes |
 |---|---|---|
-| `CLOUD_ROOT_URL` | `CloudInternal`, and `Contract` when the suite launches the example | Base cloud URL, e.g. `https://cloud.51degrees.com/`. |
-| `PAID_RESOURCE_KEY` | `CloudInternal`, and `Contract` when the suite launches the example | Resource key used by the tests. |
-| `FREE_RESOURCE_KEY` | `CloudInternal` | Free resource key for the JS-endpoint tests. |
-| `ENTERPRISE_V4_LICENSE` | `CloudInternal` | License passed to the JS endpoint to unlock paid properties. |
-| `SELENIUM_URL` | optional | Selenium grid URL, omit to drive a browser on this machine. |
-| `CHROMEWEBDRIVER` / `GECKOWEBDRIVER` / `EDGEWEBDRIVER` | optional | A driver, or the directory holding one. GitHub's Linux runner images set these. |
+| `_51DEGREES_CLOUD_ENDPOINT` | `CloudInternal`, `Contract` when the suite launches the example, and `Browser51Did` | The cloud, including its `api/v4` path, e.g. `https://cloud.51degrees.com/api/v4/`. The public cloud when unset. |
+| `_51DEGREES_RESOURCE_KEY_BESPOKE` | `CloudInternal`, and `Contract` when the suite launches the example | Resource key with every property, used by the tests and given to an example the suite launches. |
+| `_51DEGREES_RESOURCE_KEY_FREE` | `CloudInternal` | Free resource key for the JS-endpoint tests. |
+| `_51DEGREES_LICENSE_KEY_BESPOKE` | `CloudInternal` | License passed to the JS endpoint to unlock paid properties. |
+| `_51DEGREES_SELENIUM_URL` | optional | Selenium grid URL, omit to drive a browser on this machine. |
+| `CHROMEWEBDRIVER` / `GECKOWEBDRIVER` / `EDGEWEBDRIVER` | optional | A driver, or the directory holding one. GitHub's Linux, Windows and macOS runner images set these. A repository that runs this suite leaves them to it and does not read them itself. |
 | `CHROME_BIN` / `FIREFOX_BIN` / `EDGE_BIN` | optional | The browser binary to drive, when it is not on the path. |
-| `EXAMPLE_URL` / `EXAMPLE_LANG` | `Contract` | The example app to test (CI / local). |
-| `_51DEGREES_CLOUD_ENDPOINT` / `_51DEGREES_RESOURCE_KEY` | `Browser51Did` | The cloud and the resource key. Handed to the demo under each name it reads, which for the dotnet demo are these and the older names. |
-| `_51DEGREES_RESOURCE_KEY_51DID` | `Browser51Did` | Read where `_51DEGREES_RESOURCE_KEY` is unset. The name CI sets, for a resource key carrying the 51Did product. |
-| `51DEGREES_CLOUD_ENDPOINT` / `51DEGREES_RESOURCE_KEY` | `Browser51Did` | The older names, still read after every current name and reported as deprecated. |
-| `DEMO_URL` / `DEMO_LANG` / `DEMO_MODE` | `Browser51Did` | The demo to test, and `cloud` or `pipeline` pages. |
+| `_51DEGREES_EXAMPLE_URL` / `_51DEGREES_EXAMPLE_LANG` | `Contract` | The example app to test (CI / local). |
+| `_51DEGREES_EXAMPLE_URL` | `ModuleJavaScript` | The module's JavaScript example page, served with the module running. There is no example this suite could start in its place, so the tests fail without it. |
+| `_51DEGREES_RESOURCE_KEY_51DID` | `Browser51Did` | A resource key carrying the 51Did product, handed to the demo as `_51DEGREES_RESOURCE_KEY`. |
+| `_51DEGREES_DEMO_URL` / `_51DEGREES_DEMO_LANG` / `_51DEGREES_DEMO_MODE` | `Browser51Did` | The demo to test, and `cloud` or `pipeline` pages. |
+| `_51DEGREES_SELENIUM_SIBLINGS_ROOT` | optional | The folder that holds the example repositories, when it isn't this repository's parent. |
+
+An example the suite launches is given `_51DEGREES_RESOURCE_KEY`,
+`_51DEGREES_CLOUD_ENDPOINT` and, other than the .NET one, the port to listen on
+as `_51DEGREES_EXAMPLE_HTTP_PORTS`.
 
 A missing variable only fails the tests that read it, and the failure names the
 variable. Nothing is read for the run as a whole, so a `Contract` run against a
-running example (`EXAMPLE_URL`) needs no cloud URL and no key, and there is no
-need to invent placeholder values to get a run started.
+running example (`_51DEGREES_EXAMPLE_URL`) needs no cloud URL and no key, and
+there is no need to invent placeholder values to get a run started.
 
 ## Why a test was skipped
 
@@ -86,7 +93,7 @@ a small logger that prints the reason as well:
 
 ```
   Skipped Example_RendersRealDetectionResult, because: ... No example descriptor
-  registered for EXAMPLE_LANG='bogus'. Known: dotnet, java, node, python, php, rust.
+  registered for _51DEGREES_EXAMPLE_LANG='bogus'. Known: dotnet, java, node, python, php, rust.
 ```
 
 It is in `TestLogger` and it is turned on by `test.runsettings`, which the test
@@ -97,9 +104,8 @@ project points at, so a plain `dotnet test` gets it with no extra arguments.
 Contract against the public cloud, dotnet example from the sibling checkout:
 
 ```bash
-export CLOUD_ROOT_URL="https://cloud.51degrees.com/"
-export PAID_RESOURCE_KEY="<your paid resource key>"
-export EXAMPLE_LANG="dotnet"
+export _51DEGREES_RESOURCE_KEY_BESPOKE="<your resource key>"
+export _51DEGREES_EXAMPLE_LANG="dotnet"
 dotnet test --filter TestCategory=Contract
 ```
 
@@ -107,17 +113,26 @@ Contract against an example that is already running, which is how CI calls it
 and the only settings it needs:
 
 ```bash
-export EXAMPLE_URL="http://localhost:8080/"
+export _51DEGREES_EXAMPLE_URL="http://localhost:8080/"
 dotnet test --filter TestCategory=Contract
+```
+
+ModuleJavaScript against a web server module's JavaScript example, served with
+the module running on a data file that holds ScreenPixelsWidthJavascript, which
+the free Lite data file does not:
+
+```bash
+export _51DEGREES_EXAMPLE_URL="http://localhost:8889/index.html"
+dotnet test --filter TestCategory=ModuleJavaScript
 ```
 
 CloudInternal against a cloud you control:
 
 ```bash
-export CLOUD_ROOT_URL="http://localhost:8080/"
-export FREE_RESOURCE_KEY="<free key>"
-export PAID_RESOURCE_KEY="<paid key>"
-export ENTERPRISE_V4_LICENSE="<license>"
+export _51DEGREES_CLOUD_ENDPOINT="http://localhost:8080/api/v4/"
+export _51DEGREES_RESOURCE_KEY_FREE="<free key>"
+export _51DEGREES_RESOURCE_KEY_BESPOKE="<key with every property>"
+export _51DEGREES_LICENSE_KEY_BESPOKE="<license>"
 dotnet test --filter TestCategory=CloudInternal
 ```
 
@@ -155,3 +170,6 @@ nor the driver for it, so the Edge tests say so and skip.
   once against `:8080`.
 - **Each API CI** checks this repo out, launches its own example, and runs `Contract`
   against the public cloud.
+- **The NGINX and Varnish module CIs** check this repo out as a sibling, serve
+  their JavaScript example with the module running, and run `ModuleJavaScript`
+  against it. They find and start no browser or driver of their own.

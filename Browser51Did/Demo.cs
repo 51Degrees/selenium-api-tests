@@ -67,7 +67,9 @@ public sealed class DemoMode
     /// </summary>
     public static readonly DemoMode Pipeline = new("pipeline", "descriptor");
 
-    /// <summary>The route prefix, and the name DEMO_MODE takes.</summary>
+    /// <summary>
+    /// The route prefix, and the name _51DEGREES_DEMO_MODE takes.
+    /// </summary>
     public string Name { get; }
 
     private readonly string? _pathFromDescriptor;
@@ -95,15 +97,16 @@ public sealed class DemoMode
 /// <summary>
 /// The demo under test, started once for the whole run.
 /// <para>
-/// It is the demo at DEMO_URL where that is set, and otherwise the DEMO_LANG
-/// demo, dotnet unless another is named, which the suite launches from its
-/// sibling checkout through <see cref="ExampleApps.TryCreateDemo"/>, the way
-/// the Contract tests launch an example. It is started with its resource key
-/// and cloud endpoint, set under the names that demo reads (see
-/// <see cref="ExampleApps.Demos"/>) and taken from this run's own environment
-/// (each from the names <see cref="Harness"/> reads, in its order), and with
-/// the runtime's own way of choosing a port. DEMO_MODE chooses the route
-/// prefix, cloud unless pipeline is named.
+/// It is the demo at _51DEGREES_DEMO_URL where that is set, and otherwise the
+/// _51DEGREES_DEMO_LANG demo, dotnet unless another is named, which the suite
+/// launches from its sibling checkout through
+/// <see cref="ExampleApps.TryCreateDemo"/>, the way the Contract tests launch
+/// an example. It is started with its resource key and cloud endpoint, set
+/// under the names that demo reads (see <see cref="ExampleApps.Demos"/>) and
+/// taken from this run's own environment (from the names
+/// <see cref="Harness"/> reads), and with the runtime's own way of choosing a
+/// port. _51DEGREES_DEMO_MODE chooses the route prefix, cloud unless pipeline
+/// is named.
 /// </para>
 /// </summary>
 public sealed class Demo
@@ -146,7 +149,7 @@ public sealed class Demo
 
     private static Demo Choose()
     {
-        var modeName = Environment.GetEnvironmentVariable("DEMO_MODE");
+        var modeName = Environment.GetEnvironmentVariable("_51DEGREES_DEMO_MODE");
         var mode = string.Equals(
             modeName, DemoMode.Pipeline.Name, StringComparison.OrdinalIgnoreCase)
             ? DemoMode.Pipeline

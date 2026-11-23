@@ -35,7 +35,7 @@ public class DriverSettingsTests
     /// </summary>
     private const string LimitFieldName = "serverResponseTimeout";
 
-    private const string SeleniumUrlVariable = "SELENIUM_URL";
+    private const string SeleniumUrlVariable = BrowserDrivers.SeleniumUrlVariable;
 
     private static readonly string[] ChromeArguments =
         { "--no-sandbox", "--disable-dev-shm-usage" };
@@ -92,7 +92,7 @@ public class DriverSettingsTests
     /// <summary>
     /// The 51Did harness starts its browsers itself rather than through
     /// <see cref="BrowserDrivers.CreateChrome"/>, and its remote Chrome and
-    /// Firefox sessions get the same limit. SELENIUM_URL names the stand-in
+    /// Firefox sessions get the same limit. _51DEGREES_SELENIUM_URL names the stand-in
     /// for this test only, and is put back as it was.
     /// </summary>
     [TestMethod]
@@ -297,7 +297,7 @@ public class DriverSettingsTests
     }
 
     /// <summary>
-    /// When SELENIUM_URL names a Selenium that cannot be reached, the
+    /// When _51DEGREES_SELENIUM_URL names a Selenium that cannot be reached, the
     /// Chrome, Firefox and Edge browser test classes fail rather than report
     /// inconclusive, because a missing browser on a developer's machine is
     /// not a fault and a grid that will not hand one out is.

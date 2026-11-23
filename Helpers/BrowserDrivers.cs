@@ -48,7 +48,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
         /// Set to the address of a Selenium grid or container to drive a
         /// browser there instead of on this machine.
         /// </summary>
-        public const string SeleniumUrlVariable = "SELENIUM_URL";
+        public const string SeleniumUrlVariable = "_51DEGREES_SELENIUM_URL";
 
         /// <summary>
         /// Directory holding chromedriver, or the driver itself. GitHub's
@@ -515,11 +515,12 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
         }
 
         /// <summary>
-        /// Creates a driver on a remote Selenium when SELENIUM_URL is set.
+        /// Creates a driver on a remote Selenium when _51DEGREES_SELENIUM_URL
+        /// is set.
         /// </summary>
         /// <param name="options">Options for the browser.</param>
         /// <param name="driver">The driver created, or null.</param>
-        /// <returns>True when SELENIUM_URL is set.</returns>
+        /// <returns>True when _51DEGREES_SELENIUM_URL is set.</returns>
         private static bool TryCreateRemote(
             DriverOptions options, out WebDriver driver)
         {

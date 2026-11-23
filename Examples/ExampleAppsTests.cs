@@ -77,48 +77,67 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Examples
                 "run args should target the cloud getting-started web binary");
         }
 
-        [TestMethod]
-        public void Descriptors_Dotnet_SetsTheUnderscoreNames()
-        {
-            var dotnet = ExampleApps.Descriptors["dotnet"];
-            var env = dotnet.BuildEnv(new ExampleAppOptions(
+        private static IDictionary<string, string> EnvFor(
+            ExampleDescriptor descriptor) =>
+            descriptor.BuildEnv(new ExampleAppOptions(
                 Port: 5123,
                 CloudEndpoint: new Uri("https://cloud.example.test/"),
                 ResourceKey: "key",
                 ExtraEnv: new Dictionary<string, string>()));
-            Assert.AreEqual("key", env["_51DEGREES_RESOURCE_KEY"],
-                "the example reads the resource key from this name");
+
+        /// <summary>
+        /// Each example is handed the key and the endpoint, with its api/v4
+        /// path, under the _51DEGREES_ names every language reads.
+        /// </summary>
+        [TestMethod]
+        [DataRow("dotnet")]
+        [DataRow("java")]
+        [DataRow("node")]
+        [DataRow("python")]
+        [DataRow("php")]
+        [DataRow("rust")]
+        public void Descriptors_SetTheKeyAndEndpointNames(string lang)
+        {
+            var env = EnvFor(ExampleApps.Descriptors[lang]);
+            Assert.AreEqual("key", env["_51DEGREES_RESOURCE_KEY"]);
             Assert.AreEqual(
                 "https://cloud.example.test/api/v4/",
-                env["_51DEGREES_CLOUD_ENDPOINT"],
-                "the example reads the endpoint, with its api/v4 path, "
-                + "from this name");
+                env["_51DEGREES_CLOUD_ENDPOINT"]);
+        }
+
+        /// <summary>
+        /// The examples that choose their own port are given it as
+        /// _51DEGREES_EXAMPLE_HTTP_PORTS. The .NET example is given it the
+        /// way ASP.NET Core takes it.
+        /// </summary>
+        [TestMethod]
+        [DataRow("java")]
+        [DataRow("node")]
+        [DataRow("python")]
+        [DataRow("php")]
+        [DataRow("rust")]
+        public void Descriptors_SetThePortName(string lang)
+        {
+            var env = EnvFor(ExampleApps.Descriptors[lang]);
+            Assert.AreEqual("5123", env["_51DEGREES_EXAMPLE_HTTP_PORTS"]);
         }
 
         [TestMethod]
-        public void Demos_Dotnet_SetsTheUnderscoreNames()
+        public void Descriptors_Php_ListensOnThePortName()
         {
-            var dotnet = ExampleApps.Demos["dotnet"];
-            var env = dotnet.BuildEnv(new ExampleAppOptions(
-                Port: 5123,
-                CloudEndpoint: new Uri("https://cloud.example.test/"),
-                ResourceKey: "key",
-                ExtraEnv: new Dictionary<string, string>()));
-            Assert.AreEqual("key", env["_51DEGREES_RESOURCE_KEY"],
-                "the demo reads this name before the CI name "
-                + "_51DEGREES_RESOURCE_KEY_51DID, so the key the suite "
-                + "hands over is the one used");
-            Assert.AreEqual("key", env["51DEGREES_RESOURCE_KEY"],
-                "older versions of the demo read the older name");
+            StringAssert.Contains(
+                ExampleApps.Descriptors["php"].Args[1],
+                "localhost:$_51DEGREES_EXAMPLE_HTTP_PORTS");
+        }
+
+        [TestMethod]
+        public void Demos_Dotnet_SetsTheKeyAndEndpointNames()
+        {
+            var env = EnvFor(ExampleApps.Demos["dotnet"]);
+            Assert.AreEqual("key", env["_51DEGREES_RESOURCE_KEY"]);
             Assert.AreEqual(
                 "https://cloud.example.test/api/v4/",
-                env["_51DEGREES_CLOUD_ENDPOINT"],
-                "the demo reads the endpoint from this name first");
-            Assert.AreEqual(
-                "https://cloud.example.test/api/v4/",
-                env["51DEGREES_CLOUD_ENDPOINT"],
-                "older versions of the demo read the endpoint from the "
-                + "older name");
+                env["_51DEGREES_CLOUD_ENDPOINT"]);
         }
     }
 }
