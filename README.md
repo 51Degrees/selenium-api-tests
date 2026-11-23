@@ -17,11 +17,15 @@ sibling directory and run it at their integration-test step.
 | `CloudInternal` | Cloud response behaviour through a browser: cache reuse, COEP/CORP headers, third-party cookies, client-side overrides, and the per-browser JS endpoints. | Cloud CI only (vs `:8080`). |
 | `Browser51Did` | The 51Did user prompt work in Chrome and Firefox, driving a demo's pages. See [Browser51Did/README.md](Browser51Did/README.md). | Cloud CI when something they prove changed (vs `:8080`, dotnet demo). |
 | `ModuleJavaScript` | A web server module's JavaScript example, in Chrome and Firefox. The page at `_51DEGREES_EXAMPLE_URL` loads the JavaScript the module serves, which writes the browser's screen width into the `51D_ScreenPixelsWidth` cookie, and then shows in the element `widthvalue` the width the module detected from that cookie. Both must be the browser's own screen width, so a page that shows the width the data file holds for the User-Agent fails. | The NGINX and Varnish module CIs, each against its own example served with the module running. |
-| `Browser` | That a browser starts at all and runs the script on a page served from the test process. No cloud, no key, no example. Also runs the `ModuleJavaScript` check against a stand-in module served the same way, to show it passes on a working page and fails on a broken one. | This repository's own CI, on every runner image it uses. |
+| `HumanConfidence` | Human Confidence against the cloud at `_51DEGREES_CLOUD_ENDPOINT` with `_51DEGREES_RESOURCE_KEY_BESPOKE`. The key's JSON answer to a request with no browser tests has `HumanConfidenceSource` Passive and a plain level. A page served from the test process loads the key's client script in Chrome, and once the browser tests have run the answer the script hands `fod.complete` has `HumanConfidenceSource` Active and `HumanConfidence` sealed, being any value other than High, Medium or Low. Both requests name `derived.humanconfidence` and `derived.humanconfidencesource`, so the answer carries them whatever the key's own property list holds. | Any CI that has the key, against the cloud it names. |
+| `HumanConfidenceExample` | The same Active check on a running Human Confidence example's page at `_51DEGREES_EXAMPLE_URL`, reading what the client script hands `fod.complete` rather than what the page shows. The example's page asks for the properties its key carries, so this passes once the key's own property list brings the source. | A language CI that runs its Human Confidence example. |
+| `Browser` | That a browser starts at all and runs the script on a page served from the test process. No cloud, no key, no example. Also runs the `ModuleJavaScript` check against a stand-in module served the same way, to show it passes on a working page and fails on a broken one, and the Human Confidence check against a stand-in client script, to show it passes on an Active answer with a sealed value and fails on a passive one, one with no source and one with a plain level. | This repository's own CI, on every runner image it uses. |
 
 Select a subset with `--filter TestCategory=Contract`,
-`--filter TestCategory=CloudInternal` or
-`--filter TestCategory=ModuleJavaScript`.
+`--filter TestCategory=CloudInternal`,
+`--filter TestCategory=ModuleJavaScript`,
+`--filter TestCategory=HumanConfidence` or
+`--filter TestCategory=HumanConfidenceExample`.
 
 ## How a run is wired
 
@@ -71,8 +75,8 @@ and no keys are committed.
 
 | Variable | Used by | Notes |
 |---|---|---|
-| `_51DEGREES_CLOUD_ENDPOINT` | `CloudInternal`, `Contract` when the suite launches the example, and `Browser51Did` | The cloud, including its `api/v4` path, e.g. `https://cloud.51degrees.com/api/v4/`. The public cloud when unset. |
-| `_51DEGREES_RESOURCE_KEY_BESPOKE` | `CloudInternal`, and `Contract` when the suite launches the example | Resource key with every property, used by the tests and given to an example the suite launches. |
+| `_51DEGREES_CLOUD_ENDPOINT` | `CloudInternal`, `Contract` when the suite launches the example, `HumanConfidence` and `Browser51Did` | The cloud, including its `api/v4` path, e.g. `https://cloud.51degrees.com/api/v4/`. The public cloud when unset. |
+| `_51DEGREES_RESOURCE_KEY_BESPOKE` | `CloudInternal`, `HumanConfidence`, and `Contract` when the suite launches the example | Resource key with every property, used by the tests and given to an example the suite launches. |
 | `_51DEGREES_RESOURCE_KEY_FREE` | `CloudInternal` | Free resource key for the JS-endpoint tests. |
 | `_51DEGREES_LICENSE_KEY_BESPOKE` | `CloudInternal` | License passed to the JS endpoint to unlock paid properties. |
 | `_51DEGREES_SELENIUM_URL` | optional | Selenium grid URL, omit to drive a browser on this machine. |
@@ -80,6 +84,7 @@ and no keys are committed.
 | `CHROME_BIN` / `FIREFOX_BIN` / `EDGE_BIN` | optional | The browser binary to drive, when it is not on the path. |
 | `_51DEGREES_EXAMPLE_URL` / `_51DEGREES_EXAMPLE_LANG` | `Contract` | The example app to test (CI / local). |
 | `_51DEGREES_EXAMPLE_URL` | `ModuleJavaScript` | The module's JavaScript example page, served with the module running. There is no example this suite could start in its place, so the tests fail without it. |
+| `_51DEGREES_EXAMPLE_URL` | `HumanConfidenceExample` | A running Human Confidence example's page. The test fails without it, naming the variable. |
 | `_51DEGREES_RESOURCE_KEY_51DID` | `Browser51Did` | A resource key carrying the 51Did product, handed to the demo as `_51DEGREES_RESOURCE_KEY`. |
 | `_51DEGREES_DEMO_URL` / `_51DEGREES_DEMO_LANG` / `_51DEGREES_DEMO_MODE` | `Browser51Did` | The demo to test, and `cloud` or `pipeline` pages. |
 | `_51DEGREES_SELENIUM_SIBLINGS_ROOT` | optional | The folder that holds the example repositories, when it isn't this repository's parent. |
@@ -134,6 +139,17 @@ the free Lite data file does not:
 ```bash
 export _51DEGREES_EXAMPLE_URL="http://localhost:8889/index.html"
 dotnet test --filter TestCategory=ModuleJavaScript
+```
+
+HumanConfidence against a cloud, and HumanConfidenceExample against a Human
+Confidence example already running on port 5151:
+
+```bash
+export _51DEGREES_CLOUD_ENDPOINT="https://cloud.51degrees.com/api/v4/"
+export _51DEGREES_RESOURCE_KEY_BESPOKE="<a key that carries HumanConfidence>"
+dotnet test --filter TestCategory=HumanConfidence
+export _51DEGREES_EXAMPLE_URL="http://localhost:5151/"
+dotnet test --filter TestCategory=HumanConfidenceExample
 ```
 
 CloudInternal against a cloud you control:

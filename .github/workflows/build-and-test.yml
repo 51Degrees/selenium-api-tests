@@ -34,7 +34,7 @@ jobs:
       - name: Test
         run: >
           dotnet test -c Release --no-build
-          --filter "TestCategory!=Contract&TestCategory!=CloudInternal&TestCategory!=Browser&TestCategory!=ModuleJavaScript"
+          --filter "TestCategory!=Contract&TestCategory!=CloudInternal&TestCategory!=Browser&TestCategory!=ModuleJavaScript&TestCategory!=HumanConfidence&TestCategory!=HumanConfidenceExample"
 
   browsers:
     name: Browsers on ${{ matrix.os }}
