@@ -38,11 +38,19 @@ public class SessionRetryTests
     private const int RendererFailureSeconds = 1;
 
     /// <summary>
-    /// The most seconds the attempts may add to the longest one start can
-    /// take, so a browser that will not start fails its test rather than
-    /// holding the run.
+    /// The most seconds the attempts add to the longest one start can take,
+    /// as the comment on BrowserDrivers.SessionRetryWithinSeconds and the
+    /// README state it, so a change to the limits that changes this fails a
+    /// test until both are corrected.
     /// </summary>
-    private const int MostSecondsTheAttemptsMayAdd = 120;
+    private const int StatedMostSecondsTheAttemptsAdd = 64;
+
+    /// <summary>
+    /// The message Selenium gives when Selenium Manager could not fetch a
+    /// driver, reported as a plain WebDriverException.
+    /// </summary>
+    private const string SeleniumManagerMessage =
+        "Selenium Manager process exited abnormally with 65 code";
 
     private static readonly TimeSpan _rendererFailure =
         TimeSpan.FromSeconds(RendererFailureSeconds);
@@ -230,31 +238,45 @@ public class SessionRetryTests
     }
 
     /// <summary>
-    /// The attempts add less than <see cref="MostSecondsTheAttemptsMayAdd"/>
-    /// to the longest one start can take, both when every attempt hangs
-    /// until the session's time limit and when every attempt but the last
-    /// fails just inside the quick limit and the last hangs.
+    /// When every attempt hangs until the session's time limit, the attempts
+    /// add nothing to the longest one start can take.
     /// </summary>
-    /// <param name="earlierAttemptsHang">
-    /// True when the attempts before the last hang as the last does.
-    /// </param>
     [TestMethod]
-    [DataRow(true)]
-    [DataRow(false)]
-    public void Retried_AddsLittleToTheLongestStart(bool earlierAttemptsHang)
+    public void Retried_AddsNothingWhenEveryAttemptHangs()
     {
-        Assert.IsTrue(
-            BrowserDrivers.SessionStartAttempts > 1,
-            "A session must be allowed more than one attempt, or nothing "
-            + "is started again.");
         var clock = new FakeClock();
         var attempts = 0;
         Assert.ThrowsExactly<WebDriverException>(
             () => clock.Retried<string>(() =>
             {
                 attempts++;
-                if (earlierAttemptsHang == false
-                    && attempts < BrowserDrivers.SessionStartAttempts)
+                clock.Pass(_sessionTimeout);
+                throw new WebDriverException(HungMessage);
+            }));
+        var added = clock.Now - _sessionTimeout;
+        Assert.AreEqual(
+            TimeSpan.Zero,
+            added,
+            $"The attempts added {added.TotalSeconds} s to a start that "
+            + "hung, where none is allowed.");
+    }
+
+    /// <summary>
+    /// In the worst case, where every attempt but the last fails just inside
+    /// the quick limit and the last hangs until the session's time limit,
+    /// the attempts add <see cref="StatedMostSecondsTheAttemptsAdd"/> to the
+    /// longest one start can take, and no more.
+    /// </summary>
+    [TestMethod]
+    public void Retried_AddsAtMostTheStatedSecondsToTheLongestStart()
+    {
+        var clock = new FakeClock();
+        var attempts = 0;
+        Assert.ThrowsExactly<WebDriverException>(
+            () => clock.Retried<string>(() =>
+            {
+                attempts++;
+                if (attempts < BrowserDrivers.SessionStartAttempts)
                 {
                     clock.Pass(_retryWithin - TimeSpan.FromTicks(1));
                     throw new InvalidOperationException(RendererMessage);
@@ -262,12 +284,35 @@ public class SessionRetryTests
                 clock.Pass(_sessionTimeout);
                 throw new WebDriverException(HungMessage);
             }));
+        Assert.AreEqual(BrowserDrivers.SessionStartAttempts, attempts);
         var added = clock.Now - _sessionTimeout;
+        var stated = TimeSpan.FromSeconds(StatedMostSecondsTheAttemptsAdd);
         Assert.IsTrue(
-            added < TimeSpan.FromSeconds(MostSecondsTheAttemptsMayAdd),
-            $"The attempts added {added.TotalSeconds} s to the longest one "
-            + $"start can take, where at most {MostSecondsTheAttemptsMayAdd} "
-            + "s is allowed.");
+            added <= stated && stated - added < TimeSpan.FromSeconds(1),
+            $"The attempts added {added.TotalSeconds} s in the worst case, "
+            + $"where {StatedMostSecondsTheAttemptsAdd} s is stated. Correct "
+            + "the comment on SessionRetryWithinSeconds and the README.");
+    }
+
+    /// <summary>
+    /// A driver Selenium Manager could not fetch is tried again, because
+    /// Selenium reports it as a plain WebDriverException, and each attempt
+    /// costs only the time Selenium Manager takes to answer.
+    /// </summary>
+    [TestMethod]
+    public void Retried_StartsAgainWhenSeleniumManagerCouldNotFetchADriver()
+    {
+        var clock = new FakeClock();
+        var attempts = 0;
+        var failure = Assert.ThrowsExactly<WebDriverException>(
+            () => clock.Retried<string>(() =>
+            {
+                attempts++;
+                clock.Pass(_rendererFailure);
+                throw new WebDriverException(SeleniumManagerMessage);
+            }));
+        Assert.AreEqual(BrowserDrivers.SessionStartAttempts, attempts);
+        Assert.AreEqual(SeleniumManagerMessage, failure.Message);
     }
 
     /// <summary>

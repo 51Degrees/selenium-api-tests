@@ -78,10 +78,11 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
         public const int FirstStartTimeoutSeconds = 300;
 
         /// <summary>
-        /// Seconds each command of every local Chrome and Firefox session, and
-        /// of every remote session, may take, its start included. A later
-        /// start can take as long as a first, so every session has the first
-        /// start's limit in place of the driver's 60 seconds.
+        /// Seconds each command of every local Chrome, Edge and Firefox
+        /// session, and of every remote session, may take, its start
+        /// included. A later start can take as long as a first, so every
+        /// session has the first start's limit in place of the driver's 60
+        /// seconds.
         /// </summary>
         public const int SessionTimeoutSeconds = FirstStartTimeoutSeconds;
 
@@ -89,10 +90,11 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
             TimeSpan.FromSeconds(SessionTimeoutSeconds);
 
         /// <summary>
-        /// Attempts a browser session is given to start. A driver that
+        /// Attempts a local browser session is given to start. A driver that
         /// started the browser but could not reach it answers in about a
-        /// second, Selenium stops that driver's process, and the next attempt
-        /// usually starts, so one such answer does not fail a test.
+        /// second and Selenium stops that driver's process. A re-run of the
+        /// job has cleared that failure, so it is tried again rather than
+        /// failing the test.
         /// </summary>
         public const int SessionStartAttempts = 3;
 
@@ -510,9 +512,10 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
         /// InvalidOperationException for a session it could not create and a
         /// WebDriverException for a driver service that would not run. Some
         /// answers of these types do not clear on another attempt, a driver
-        /// that does not match its browser for one, and those cost only the
-        /// seconds the extra attempts take. Options the driver rejects and a
-        /// driver that cannot be found are never tried again.
+        /// that does not match its browser or a driver Selenium Manager could
+        /// not fetch for two, and those cost only the seconds the extra
+        /// attempts take. Options the driver rejects and a driver path that
+        /// does not exist are never tried again.
         /// </summary>
         /// <param name="e">What stopped the attempt.</param>
         /// <returns>True when another attempt is worth making.</returns>
