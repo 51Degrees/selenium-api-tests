@@ -717,7 +717,8 @@ public static class Harness
     /// share this machine's network, because the site names resolve to
     /// 127.0.0.1 inside the browser. Either way the session has
     /// <see cref="BrowserDrivers.SessionTimeoutSeconds"/> for each command,
-    /// and a local one a quiet driver service.
+    /// and a local one a quiet driver service and the attempts of
+    /// <see cref="BrowserDrivers.Retried{T}(string, Func{T})"/>.
     /// </summary>
     private static IWebDriver Start(DriverOptions options)
     {
@@ -729,10 +730,14 @@ public static class Harness
         var limit = TimeSpan.FromSeconds(BrowserDrivers.SessionTimeoutSeconds);
         return options switch
         {
-            ChromeOptions chrome => new ChromeDriver(
-                BrowserDrivers.ChromeService(null), chrome, limit),
-            FirefoxOptions firefox => new FirefoxDriver(
-                BrowserDrivers.FirefoxService(null), firefox, limit),
+            ChromeOptions chrome => BrowserDrivers.Retried(
+                "Chrome",
+                () => new ChromeDriver(
+                    BrowserDrivers.ChromeService(null), chrome, limit)),
+            FirefoxOptions firefox => BrowserDrivers.Retried(
+                "Firefox",
+                () => new FirefoxDriver(
+                    BrowserDrivers.FirefoxService(null), firefox, limit)),
             _ => throw new ArgumentOutOfRangeException(
                 nameof(options),
                 $"{options.GetType().Name} is not a browser these tests use."),
