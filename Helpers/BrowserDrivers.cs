@@ -135,6 +135,31 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
             new[] { "--no-sandbox", "--disable-dev-shm-usage" };
 
         /// <summary>
+        /// The argument that has a local Chrome or Edge talk to its driver
+        /// over a pair of pipes instead of a TCP port.
+        /// </summary>
+        /// <remarks>
+        /// With a port, the driver starts the browser, reads its DevTools
+        /// address over HTTP, and then opens a web socket to it once. When
+        /// that one connection fails the driver gives up at once with
+        /// "session not created from disconnected: unable to connect to
+        /// renderer", although the browser is running. Windows runners have
+        /// failed a test that way about a second into its start. With pipes
+        /// the driver holds both ends from the moment it starts the browser,
+        /// so there is no socket to open and no port to reach. The driver's
+        /// own log says pipes are the more reliable choice.
+        /// Remote sessions are left alone, as the grid decides how its own
+        /// driver reaches the browser.
+        /// </remarks>
+        public const string DebuggingPipeArgument = "--remote-debugging-pipe";
+
+        /// <summary>
+        /// Start of both arguments that choose how the driver reaches the
+        /// browser, --remote-debugging-port and --remote-debugging-pipe.
+        /// </summary>
+        private const string DebuggingArgumentPrefix = "--remote-debugging-";
+
+        /// <summary>
         /// The argument that starts Chrome, Edge and Firefox without a window.
         /// </summary>
         public const string HeadlessArgument = "--headless";
@@ -246,6 +271,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
             {
                 return remote;
             }
+            UseDebuggingPipe(options);
             SetBinaryLocation(options, ChromeBinaryVariable, _chromeBinaryNames);
             var driverPath = FindDriver(ChromeDriverVariable, ChromeDriverNames);
             StartOnce("Chrome", timeout => Visit(new ChromeDriver(
@@ -279,6 +305,25 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
                 {
                     options.AddArgument(argument);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Gives a local Chrome or Edge <see cref="DebuggingPipeArgument"/>,
+        /// unless the options already choose a port or a pipe, so a caller
+        /// that picked one keeps it.
+        /// </summary>
+        /// <param name="options">Options for the browser.</param>
+        public static void UseDebuggingPipe(ChromiumOptions options)
+        {
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+            if (options.Arguments.Any(a => a.StartsWith(
+                DebuggingArgumentPrefix, StringComparison.Ordinal)) == false)
+            {
+                options.AddArgument(DebuggingPipeArgument);
             }
         }
 
@@ -406,6 +451,7 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
                     + $"Set {SeleniumUrlVariable} to a Selenium that has "
                     + "Edge, or run the Edge tests on another architecture.");
             }
+            UseDebuggingPipe(options);
             SetBinaryLocation(options, EdgeBinaryVariable, _edgeBinaryNames);
             if (driverPath != null)
             {

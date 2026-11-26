@@ -728,6 +728,10 @@ public static class Harness
             return BrowserDrivers.CreateRemote(new Uri(seleniumUrl), options);
         }
         var limit = TimeSpan.FromSeconds(BrowserDrivers.SessionTimeoutSeconds);
+        if (options is ChromeOptions local)
+        {
+            BrowserDrivers.UseDebuggingPipe(local);
+        }
         return options switch
         {
             ChromeOptions chrome => BrowserDrivers.Retried(

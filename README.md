@@ -61,7 +61,9 @@ Select a subset with `--filter TestCategory=Contract`,
   path that does not exist are reported at once. `BrowserDrivers.Prepare`
   runs every browser headless and accepting insecure certificates, and gives
   every Chrome and Edge `--no-sandbox` and `--disable-dev-shm-usage`, so a test
-  sets none of these itself. The Chrome, Edge and Firefox drivers start
+  sets none of these itself. A local Chrome or Edge also gets
+  `--remote-debugging-pipe`, so its driver reaches it over pipes rather than a
+  port, unless the options already choose one. The Chrome, Edge and Firefox drivers start
   quietly, with no start up banner, no verbose log and no console window. The
   51Did tests are the exception, as `Browser51Did/Harness.cs` starts their
   Chrome and Firefox itself, with the same preparation, time limit, attempts
@@ -167,8 +169,9 @@ dotnet test --filter TestCategory=CloudInternal
 The "Build and test" workflow builds the suite on every push and pull request,
 and runs it in two jobs. The first runs the tests that need no browser, no
 cloud and no keys. The second starts Chrome and Firefox on `ubuntu-latest`,
-`ubuntu-22.04-arm` and `ubuntu-24.04-arm`, and prints what each runner
-provides before it does. Together they prove a change here before any language
+`ubuntu-22.04-arm`, `ubuntu-24.04-arm` and `windows-latest`, and prints what
+each runner provides before it does. Windows is there because a local Chrome
+has failed to start a session there and not on Linux. Together they prove a change here before any language
 repository picks it up.
 
 ## Browsers by architecture
