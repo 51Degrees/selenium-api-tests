@@ -45,8 +45,10 @@ jobs:
         # The ARM64 images are here because a browser suite that could not
         # start a browser on them was reported as passing for as long as nobody
         # read the log. ubuntu-22.04-arm is the image the language repositories
-        # run their ARM jobs on.
-        os: [ubuntu-latest, ubuntu-22.04-arm, ubuntu-24.04-arm]
+        # run their ARM jobs on. windows-latest is here because Windows is
+        # where a local Chrome has failed to start a session, and it is the
+        # runner the language repositories run their Windows jobs on.
+        os: [ubuntu-latest, ubuntu-22.04-arm, ubuntu-24.04-arm, windows-latest]
     steps:
       - uses: actions/checkout@v4
 
@@ -57,6 +59,7 @@ jobs:
       # Say what the runner brought, so a later change of image is readable
       # from the log rather than guessed at.
       - name: What this runner provides
+        shell: bash
         run: |
           echo "arch: $(uname -m)"
           echo "CHROMEWEBDRIVER: ${CHROMEWEBDRIVER:-<unset>}"

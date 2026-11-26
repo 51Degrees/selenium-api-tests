@@ -169,8 +169,9 @@ dotnet test --filter TestCategory=CloudInternal
 The "Build and test" workflow builds the suite on every push and pull request,
 and runs it in two jobs. The first runs the tests that need no browser, no
 cloud and no keys. The second starts Chrome and Firefox on `ubuntu-latest`,
-`ubuntu-22.04-arm` and `ubuntu-24.04-arm`, and prints what each runner
-provides before it does. Together they prove a change here before any language
+`ubuntu-22.04-arm`, `ubuntu-24.04-arm` and `windows-latest`, and prints what
+each runner provides before it does. Windows is there because a local Chrome
+has failed to start a session there and not on Linux. Together they prove a change here before any language
 repository picks it up.
 
 ## Browsers by architecture
