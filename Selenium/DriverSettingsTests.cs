@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -62,6 +63,31 @@ public class DriverSettingsTests
         Assert.IsTrue(
             options.Arguments.Contains("--headless"),
             "the caller's own argument must be kept.");
+    }
+
+    /// <summary>
+    /// A local Chrome or Edge is given the debugging pipe once, and options
+    /// that already choose a port or a pipe are left as they are.
+    /// </summary>
+    [TestMethod]
+    public void DebuggingPipe_AddedOnce_CallersChoiceKept()
+    {
+        var options = new ChromeOptions();
+        Invoke("UseDebuggingPipe", options);
+        Invoke("UseDebuggingPipe", options);
+        Assert.AreEqual(
+            1,
+            options.Arguments.Count(a => a == "--remote-debugging-pipe"),
+            "the pipe must be in the options exactly once. They hold: "
+            + string.Join(" ", options.Arguments));
+
+        var port = new EdgeOptions();
+        port.AddArgument("--remote-debugging-port=9222");
+        Invoke("UseDebuggingPipe", port);
+        Assert.IsFalse(
+            port.Arguments.Contains("--remote-debugging-pipe"),
+            "a port the caller chose must not be joined by a pipe. The "
+            + "options hold: " + string.Join(" ", port.Arguments));
     }
 
     /// <summary>
@@ -182,6 +208,51 @@ public class DriverSettingsTests
                     $"CreateChrome must give {argument}. The options hold: "
                     + string.Join(" ", options.Arguments));
             }
+        }
+        finally
+        {
+            driver.Quit();
+        }
+    }
+
+    /// <summary>
+    /// A Chrome started through <see cref="BrowserDrivers.CreateChrome"/>
+    /// talks to its driver over the pipe. Mobile emulation, which the client
+    /// side override tests use, still applies, and a DevTools command sent
+    /// through the driver, as the location tests send theirs, still works.
+    /// </summary>
+    [TestMethod, TestCategory("Browser")]
+    public void CreateChrome_UsesThePipe_AndDevToolsCommandsWork()
+    {
+        if (ExternalSeleniumHelper.IsExternalSelenium(out _))
+        {
+            Assert.Inconclusive(
+                "A remote session is not given the pipe, so there is "
+                + "nothing to check here.");
+        }
+        var options = new ChromeOptions();
+        options.EnableMobileEmulation(new ChromiumMobileEmulationDeviceSettings
+        {
+            Width = 414,
+            Height = 736,
+            PixelRatio = 3,
+            UserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)",
+        });
+        var driver = (ChromeDriver)BrowserDrivers.CreateChrome(options);
+        try
+        {
+            Assert.AreEqual(
+                3L,
+                Convert.ToInt64(driver.ExecuteScript(
+                    "return window.devicePixelRatio;")),
+                "the emulated pixel ratio must apply over the pipe.");
+            Assert.IsTrue(
+                options.Arguments.Contains("--remote-debugging-pipe"),
+                "CreateChrome must give a local Chrome the pipe. The "
+                + "options hold: " + string.Join(" ", options.Arguments));
+            var version = driver.ExecuteCdpCommand(
+                "Browser.getVersion", new Dictionary<string, object>());
+            Assert.IsNotNull(version, "Browser.getVersion gave nothing back.");
         }
         finally
         {

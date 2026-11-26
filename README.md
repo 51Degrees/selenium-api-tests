@@ -61,7 +61,9 @@ Select a subset with `--filter TestCategory=Contract`,
   path that does not exist are reported at once. `BrowserDrivers.Prepare`
   runs every browser headless and accepting insecure certificates, and gives
   every Chrome and Edge `--no-sandbox` and `--disable-dev-shm-usage`, so a test
-  sets none of these itself. The Chrome, Edge and Firefox drivers start
+  sets none of these itself. A local Chrome or Edge also gets
+  `--remote-debugging-pipe`, so its driver reaches it over pipes rather than a
+  port, unless the options already choose one. The Chrome, Edge and Firefox drivers start
   quietly, with no start up banner, no verbose log and no console window. The
   51Did tests are the exception, as `Browser51Did/Harness.cs` starts their
   Chrome and Firefox itself, with the same preparation, time limit, attempts
