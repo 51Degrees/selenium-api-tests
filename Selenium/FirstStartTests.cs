@@ -8,6 +8,7 @@ using FiftyOne.Pipeline.Cloud.Tests.Common.Helpers;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
+using OpenQA.Selenium.Edge;
 using OpenQA.Selenium.Firefox;
 
 namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Selenium
@@ -101,6 +102,23 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Selenium
             var options = new FirefoxOptions();
             AssertStartedOnce(
                 "Firefox", () => BrowserDrivers.CreateFirefox(options));
+        }
+
+        /// <summary>
+        /// Creating an Edge driver starts Edge once first. On ARM64 Linux,
+        /// where Microsoft ships no Edge, it's inconclusive with the reason
+        /// <see cref="BrowserDrivers.CreateEdge"/> gives.
+        /// </summary>
+        [TestMethod, TestCategory("Browser")]
+        public void Edge_StartsOnceBeforeItsFirstTest()
+        {
+            if (BrowserDrivers.IsLinuxArm64)
+            {
+                Assert.Inconclusive("Microsoft ships no Edge for ARM64 Linux.");
+            }
+            var options = new EdgeOptions();
+            AssertStartedOnce(
+                "Edge", () => BrowserDrivers.CreateEdge(options));
         }
 
         /// <summary>
