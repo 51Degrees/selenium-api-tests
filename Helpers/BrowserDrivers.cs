@@ -345,8 +345,12 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
         /// <summary>
         /// Creates an Edge driver, with the options given what
         /// <see cref="Prepare"/> gives, a quiet driver service and
-        /// <see cref="SessionTimeoutSeconds"/> for each command. Edge is not
-        /// started once first, as Chrome and Firefox are.
+        /// <see cref="SessionTimeoutSeconds"/> for each command. Edge is
+        /// started once first, as Chrome and Firefox are: on a fresh
+        /// ubuntu-26.04 runner its first session's first page load took more
+        /// than the 300 seconds a command may take, failing the first test of
+        /// EdgeTests in its initialisation (cloud CI, 26 and 27 November
+        /// 2026), while every later load was quick.
         /// </summary>
         /// <param name="options">Options for the browser.</param>
         /// <returns>A driver, which the caller quits.</returns>
@@ -371,6 +375,8 @@ namespace FiftyOne.Pipeline.Cloud.SeleniumTests.Helpers
                     + "Edge, or run the Edge tests on another architecture.");
             }
             SetBinaryLocation(options, EdgeBinaryVariable, _edgeBinaryNames);
+            StartOnce("Edge", timeout => Visit(new EdgeDriver(
+                EdgeService(driverPath), options, timeout)));
             if (driverPath != null)
             {
                 return new EdgeDriver(
